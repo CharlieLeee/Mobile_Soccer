@@ -3,7 +3,7 @@ File: geo.py
 File Created: Wednesday, 24th November 2021 9:49:35 am
 Author: LI Jiangfan 
 -----
-Last Modified: Wednesday, 24th November 2021 11:57:04 am
+Last Modified: Monday, 29th November 2021 1:36:53 pm
 Modified By: LI Jiangfan 
 -----
 Description:
@@ -17,6 +17,8 @@ Tools Classes for map, ...
  V x
 """
 import math
+
+Thymio_Size = 0.08 # radius, in meters
 
 class Pos:
     def __init__(self, x, y):
@@ -36,9 +38,10 @@ class GridMap:
     # And it can be fluctuation of motion following continuous waypoints of high resolution.
     # which do you prefer?
     """Vision --set--> GridMap --> GN"""
-    def __init__(self, h, w):
+    def __init__(self, h, w, s):
         self.height = h # x
         self.width = w  # y
+        self.scale = s # in meters
 
     def set_goal(self, p):
         self.goal = p
