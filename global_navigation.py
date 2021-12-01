@@ -14,8 +14,10 @@ from geo import *
 from queue import PriorityQueue
 import numpy as np
 
+import matplotlib.pyplot as plt
+
 class PathPlanner:
-    def __init__(self, map = None, method = "A*", neighbor = 4, path_simplification = False): 
+    def __init__(self, map = None, method = "A*", neighbor = 4, path_simplification = False, plot = False): 
         """tell me the map, I will give u a path
 
         u can use 'set_map' to tell me the map, 
@@ -23,10 +25,16 @@ class PathPlanner:
         or specify the map when calling 'plan'
         """
         self.map = map
+        if self.map is not None:
+            self.enlarge_obs()
         self.method = method
         self.neighbor = neighbor
-        self.path_simplification = path_simplification
+        self.simplify = path_simplification
         # self.settings = settings # TODO
+
+        self.plot = plot
+        if self.plot:
+            self._plot(None)
     
     def set_map(self, map):
         self.map = map
@@ -46,18 +54,19 @@ class PathPlanner:
         considering the size of Thymio
         """
         assert self.map is not None
-        num = Thymio_Size / self.map.scale
-        self.obs = [[False] * self.map.height] * self.map.width
+        num = (int)(Thymio_Size / self.map.scale)
+        self.obs = [[False for _ in range(self.map.width)] for _ in range(self.map.height)]
         def ava(x, y):
             return x >=0 and x<self.map.height and y>=0 and y<self.map.width
         for i in range(self.map.height):
             for j in range(self.map.width):
                 if not self.map.check(Pos(i,j)):
-                    self.obs[i, j] = True
-                    for m in range(-num, num):
-                        for n in range(-num, num):
-                            if ava(m, n):
-                                self.obs[m,n] = True
+                    self.obs[i][j] = True
+                    if num != 0:
+                        for m in range(-num, num):
+                            for n in range(-num, num):
+                                if ava(i+m, j+n):
+                                    self.obs[i+m][j+n] = True
 
     def plan(self, map = None):
         """return a path from the start to the goal
@@ -66,11 +75,15 @@ class PathPlanner:
         @return waypoints: Queue[Pos] 
             Note: If no feasible path found, the list will be empty
         """
-        if map is None:
-            map = self.map
-        self.map = map
+        if map is None:          
+            if self.map is None:
+                raise Exception("Error: Please assign a Map first.")
+        else:
+            self.map = map
+            self.enlarge_obs()
+
         if self.method == "A*":
-            return self._a_star()
+            ret = self._a_star()
         elif self.method == "Greedy":
             pass
         elif self.method == "biRRT":
@@ -78,38 +91,46 @@ class PathPlanner:
         else:
             print("Warning! unknown method of path planning, using default instead.")
             self.method = "A*"
-            return self.plan(map)
+            ret = self._a_star()
+        
+        if self.plot:
+            self._plot(ret)
+        return ret
+        
 
     def _a_star(self):
         qps = PriorityQueue()
-        gcost = [[math.inf]*self.map.height]*self.map.width
-        gcost[self.map.start.x, self.map.start.y] = 0
-        parent = [[math.inf]*self.map.height]*self.map.width
-        parent[self.map.start.x, self.map.start.y] = self.map.start        
+        gcost = [[math.inf for _ in range(self.map.width)] for _ in range(self.map.height)]
+        gcost[self.map.start.x][self.map.start.y] = 0
+        parent = [[None for _ in range(self.map.width)] for _ in range(self.map.height)]
+        parent[self.map.start.x][self.map.start.y] = self.map.start        
         def heuristic(p):
-            return gcost[p.x, p.y] + p.dis(self.map.goal)
+            return gcost[p.x][p.y] + p.dis(self.map.goal)
         def check(p):
-            for pn in self.__get_neighbors(p):
-                newcost =  gcost[p.x, p.y] + 1
-                if self.__check(pn) and gcost[pn.x, pn.y] > newcost:
-                    gcost[pn.x, pn.y] = newcost
-                    parent[pn.x, pn.y] = p
-                    qps.put((heuristic(pn, heuristic(pn))))
+            for pn,c in self.__get_neighbors(p):
+                newcost =  gcost[p.x][p.y] + c
+                if self.__check(pn) and gcost[pn.x][pn.y] > newcost:
+                    gcost[pn.x][pn.y] = newcost
+                    parent[pn.x][pn.y] = p
+                    qps.put((heuristic(pn), pn))
 
-        qps.put((heuristic(self.map.start, heuristic(self.map.start))))
-        while qps.not_empty:
-            p = qps.get()
+        qps.put((heuristic(self.map.start), self.map.start))
+        waypoints = []
+        while not qps.empty():
+            c, p = qps.get()
             if p == self.map.goal:
                 w = self.map.goal
-                waypoints = [w]
+                waypoints.append(w)
                 while w != self.map.start:
-                    w = parent[w.x, w.y]
+                    w = parent[w.x][w.y]
                     waypoints.append(w)
                 break
             else:
                 check(p)
-        waypoints = self.collect_wps(waypoints)
-        if self.path_simplification:
+        if len(waypoints) == 0:
+            return []
+        #waypoints = self.collect_wps(waypoints)
+        if self.simplify:
             waypoints = self.path_simplification(waypoints)
         # Note: waypoints need to be reversed
         return waypoints
@@ -180,13 +201,13 @@ class PathPlanner:
     """Map Search Operations"""
 
     def __get_neighbors(self, p):
-        ava = [p.x > 0, p.x < self.map.height, p.y > 0, p.y < self.map.width]
+        ava = [p.x > 0, p.x < self.map.height-1, p.y > 0, p.y < self.map.width-1]
         bias = [(-1, 0),(1, 0),(0, -1),(0, 1)]
         if self.neighbor == 4:
             ret = []
             for i in range(4):
                 if ava[i]:
-                    ret.append(Pos(p.x+bias[i][0], p.y+bias[i][1]))
+                    ret.append((Pos(p.x+bias[i][0], p.y+bias[i][1]), 1))
             return ret
         elif self.neighbor == 8:
             ava += [ava[0] and ava[2], ava[0] and ava[3], ava[1] and ava[2], ava[1] and ava[3]]
@@ -194,7 +215,7 @@ class PathPlanner:
             ret = []
             for i in range(8):
                 if ava[i]:
-                    ret.append(Pos(p.x+bias[i][0], p.y+bias[i][1]))
+                    ret.append((Pos(p.x+bias[i][0], p.y+bias[i][1]), 1 if i<4 else 1.5))
             return ret            
         else:
             print("Warning! unsupported neighbor number, using default instead.")
@@ -202,5 +223,51 @@ class PathPlanner:
             return self.__get_neighbors(p)
 
     def __check(self, p):
-        return not self.obs[p.x, p.y]
+        return not self.obs[p.x][p.y]
+
+    """Visualization"""
+    def _plot(self, path):
+        # plot the map
+        self.map_image = np.zeros(shape=(self.map.height, self.map.width))
+        def plot_point(p, value):
+            self.map_image[p.x, p.y] = value
+
+        plot_point(self.map.start, 2)
+        plot_point(self.map.goal, 3)
+        for i in range(self.map.height):
+            for j in range(self.map.width):
+                if self.obs[i][j]:
+                    plot_point(Pos(i,j),1)
+
+        if path is not None:
+            for p in path:
+                plot_point(p, 4)
+            if len(path) > 0:
+                cp = self.collect_wps(path)
+                for p in cp:
+                    plot_point(p,5)
+                #sp = self.path_simplification(cp)
+                #for p in sp:
+                #    plot_point(p,6)
+
+        plt.imshow(self.map_image)
+        plt.show()
+
+if __name__ == "__main__":
+    # generate a random map
+    # Note: 600*800 is too big for A star
+    h, w = 100, 200
+    rmap = GridMap(h, w, 0.8)
+    rmap.set_start(Pos(0,0))
+    rmap.set_goal(Pos(h-1, w-1))
+    import random
+    #obslist = [Pos(0,1), Pos(1,1)]
+    obslist = [Pos(random.randint(1,h-1),random.randint(1,w-1)) for _ in range(5000)]
+    rmap.set_obs(obslist)
+
+    # planner
+    ppr = PathPlanner(rmap,path_simplification=False, plot=True,neighbor=8)
+    path = ppr.plan()
+    #for p in path:
+    #    print(p)
     
