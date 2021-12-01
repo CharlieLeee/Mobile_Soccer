@@ -152,36 +152,36 @@ class PathPlanner:
         nwps.append(p2)
         return nwps
 
+    def _obsinbetween(self, p1, p2):
+        if abs(p1.x - p2.x) > abs(p1.y - p2.y):
+            s = abs(1.0*(p1.y - p2.y)/(p1.x - p2.x))
+            if p1.x > p2.x:
+                ps = p2
+                pe = p1
+            else:
+                ps = p1
+                pe = p2
+            for i in range(1, pe.x - ps.x):
+                if not self.__check(Pos(ps.x + i, (int)(i*s + ps.y))):
+                    return True
+        else:
+            s = abs(1.0*(p1.x - p2.x)/(p1.y - p2.y))
+            if p1.y > p2.y:
+                ps = p2
+                pe = p1
+            else:
+                ps = p1
+                pe = p2
+            for i in range(1, pe.y - ps.y):
+                if not self.__check(Pos((int)(i*s + ps.x), ps.y + i)):
+                    return True
+        return False
+
     def path_simplification(self, waypoints):
         """eliminate waypoints into several nodes
         
         Provide less lines for motion
         """
-        def obsinbetween(p1, p2):
-            if abs(p1.x - p2.x) > abs(p1.y - p2.y):
-                s = abs(1.0*(p1.y - p2.y)/(p1.x - p2.x))
-                if p1.x > p2.x:
-                    ps = p1
-                    pe = p2
-                else:
-                    ps = p2
-                    pe = p1
-                for i in range(1, pe.x - ps.x):
-                    if not self.__check(Pos(ps.x + i, (int)(i*s + ps.y))):
-                        return True
-            else:
-                s = abs(1.0*(p1.x - p2.x)/(p1.y - p2.y))
-                if p1.y > p2.y:
-                    ps = p1
-                    pe = p2
-                else:
-                    ps = p2
-                    pe = p1
-                for i in range(1, pe.y - ps.y):
-                    if not self.__check(Pos((int)(i*s + ps.x), ps.y + i)):
-                        return True
-            return False
-
         # grand-parent-child
         grand = waypoints[0]
         nwps = [grand]
@@ -189,10 +189,11 @@ class PathPlanner:
         i = 2
         while i < len(waypoints):
             child = waypoints[i]
-            if obsinbetween(grand, child):
+            if self._obsinbetween(grand, child):
                 nwps.append(parent)
                 grand = parent
             parent = child
+            i += 1
         nwps.append(child)
         return nwps
 
@@ -232,23 +233,24 @@ class PathPlanner:
         def plot_point(p, value):
             self.map_image[p.x, p.y] = value
 
-        plot_point(self.map.start, 2)
-        plot_point(self.map.goal, 3)
+        plot_point(self.map.start, 80)
+        plot_point(self.map.goal, 120)
         for i in range(self.map.height):
             for j in range(self.map.width):
                 if self.obs[i][j]:
-                    plot_point(Pos(i,j),1)
+                    plot_point(Pos(i,j),40)
 
         if path is not None:
             for p in path:
-                plot_point(p, 4)
+                plot_point(p, 160)
             if len(path) > 0:
                 cp = self.collect_wps(path)
                 for p in cp:
-                    plot_point(p,5)
-                #sp = self.path_simplification(cp)
-                #for p in sp:
-                #    plot_point(p,6)
+                    plot_point(p,200)
+                sp = self.path_simplification(cp)
+                for p in sp:
+                    plot_point(p,250)
+                    print(p)
 
         plt.imshow(self.map_image)
         plt.show()
@@ -257,12 +259,11 @@ if __name__ == "__main__":
     # generate a random map
     # Note: 600*800 is too big for A star
     h, w = 100, 200
-    rmap = GridMap(h, w, 0.8)
+    rmap = GridMap(h, w, 0.01)
     rmap.set_start(Pos(0,0))
     rmap.set_goal(Pos(h-1, w-1))
     import random
-    #obslist = [Pos(0,1), Pos(1,1)]
-    obslist = [Pos(random.randint(1,h-1),random.randint(1,w-1)) for _ in range(5000)]
+    obslist = [Pos(random.randint(8,h-8),random.randint(8,w-8)) for _ in range(10)]
     rmap.set_obs(obslist)
 
     # planner
