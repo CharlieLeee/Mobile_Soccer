@@ -7,7 +7,7 @@ Last Modified: Wednesday, 24th November 2021 11:57:25 am
 Modified By: LI Jiangfan 
 -----
 Description:
-Global Navigatio Module: Return a feasible path from the start to the goal.
+Global Navigation Module: Return a feasible path from the start to the goal.
 '''
 from geo import *
 
