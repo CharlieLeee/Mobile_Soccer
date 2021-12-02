@@ -1,13 +1,14 @@
 '''
 File: global_navigation.py
-File Created: Wednesday, 24th November 2021 9:59:22 am
 Author: LI Jiangfan 
 -----
-Last Modified: Monday, 29th November 2021 1:36:22 pm
-Modified By: LI Jiangfan 
------
 Description:
-Global Navigation Module: Return a feasible path from the start to the goal.
+Global Navigation Module: 
+* Return a feasible path from the start to the goal.
+    * A*(optimal)
+    * RRT(not optimal, but faster)
+* Path Simplification
+* Calculate Approach Pose
 '''
 from geo import *
 

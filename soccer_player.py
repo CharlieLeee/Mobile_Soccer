@@ -30,10 +30,10 @@ S_epsilon_theta = 0.1
 S_stablize_filter_steps = 10
 # -- Controllers --
 G_th = thymio_interface.ThymioInterface()
-G_mc = motion_control.MotionController(S_motion_interval)
+G_mc = motion_control.MotionController(G_th, S_motion_interval)
 G_mc.timer = time.time()
 G_vision = vision.Processor()
-G_filter = filtering.Filter()
+G_filter = filtering.KF()
 G_filter.timer = time.time()
 
 # -- States --

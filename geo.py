@@ -1,10 +1,6 @@
 '''
 File: geo.py
-File Created: Wednesday, 24th November 2021 9:49:35 am
 Author: LI Jiangfan 
------
-Last Modified: Monday, 29th November 2021 1:36:53 pm
-Modified By: LI Jiangfan 
 -----
 Description:
 Tools Classes for map, ...

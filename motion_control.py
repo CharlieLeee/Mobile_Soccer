@@ -1,12 +1,9 @@
 '''
 File: motion_control.py
-Project: Mobile_Soccer
-File Created: Tuesday, 30th November 2021 5:56:18 pm
-Author: JiangfanLi (rdemezerl@gmail.com)
-Description: Interface of Thymio Control with motion
------
-Last Modified: Thursday, 2nd December 2021 7:05:27 pm
-Modified By: JiangfanLi (rdemezerl@gmail.com>)
+Author: JiangfanLi 
+-------
+Description: 
+Motion Control with Thymio Interface
 '''
 
 from thymio_interface import ThymioInterface
@@ -14,7 +11,12 @@ from thymio_interface import ThymioInterface
 import time
 
 class MotionController:
-    def __init__(self, thymio, time_interval = 10, eps_delta_r = 1, eps_delta_theta = 0.1):
+    def __init__(self, thymio, time_interval = 0.1, # s 
+                 eps_delta_r = 1, eps_delta_theta = 0.1,
+                 max_speed = 100, 
+                 speed_scale = 0.001, # TODO (m/s) / speed_in_motor_command
+                 rotate_scale = 0.01, # TODO (rad/s) / speed_in_motor_command
+                 ):
         """Motion Controller
 
         Connected with thymio interface
@@ -26,6 +28,10 @@ class MotionController:
         
         self.eps_delta_r = eps_delta_r
         self.eps_delta_theta = eps_delta_theta
+
+        self.max_speed = max_speed
+        self.speed_scale = speed_scale
+        self.rotate_scale = rotate_scale
         pass
 
     # -- Local Navigation --
@@ -33,8 +39,7 @@ class MotionController:
     def avoid(self):
         pass
 
-    # -- Path Tracking --
-        
+    # -- Path Tracking --        
     def path_tracking(self, waypoint, Thymio_state, verbose = False):
         """Follow the path
 
@@ -59,36 +64,39 @@ class MotionController:
                 self.approach(delta_r, headto_theta)
             else:
                 self.approach(delta_r, 0)
-        return False
+            return False
 
     # -- Movement --
     def approach(self, delta_r, delta_theta = 0):
-        """approach to the goal point"""
-        # assume u only move <interval> ms. 
-        # max speeds
+        """approach to the goal point
         
-        pass
+            move with modification of direction
+        """
+        # assume u only move <interval> s. 
+        advance_speed = delta_r/self.interval/self.speed_scale, self.max_speed
+        delta_speed = delta_theta/self.interval/self.rotate_scale
+        self.move(advance_speed, min(delta_speed, self.max_speed/2))
 
     def rotate(self, delta_theta):
         """rotate in place
         """
-        
-        pass
+        delta_speed = delta_theta/self.interval/self.rotate_scale
+        self.move(0, min(delta_speed, self.max_speed))
 
-    def move(self, vel, omega):
+    def move(self, vel, omega = 0):
         """
         move with transitional velocity and rotational velocity
         """
-        
+        vel = min(vel, self.max_speed - 2*abs(omega))
+        self.thymio.motor(vel-omega, vel+omega)        
         self.timer = time.time()
-        pass
 
     def stop(self):
-        pass
+        self.thymio.motor(0, 0)
 
     # -- Sensor --
     def obs_front(self):
-        """if there's obstacles on the way forward"""
+        """if there's obstacle on the way forward"""
         return True # TODO
 
     def acc(self):
