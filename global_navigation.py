@@ -86,8 +86,8 @@ class PathPlanner:
             ret = self._a_star()
         elif self.method == "Greedy":
             pass
-        elif self.method == "biRRT":
-            pass
+        elif self.method == "RRT":
+            ret = self._rrt()
         else:
             print("Warning! unknown method of path planning, using default instead.")
             self.method = "A*"
@@ -106,13 +106,6 @@ class PathPlanner:
         parent[self.map.start.x][self.map.start.y] = self.map.start        
         def heuristic(p):
             return gcost[p.x][p.y] + p.dis(self.map.goal)
-        def check(p):
-            for pn,c in self.__get_neighbors(p):
-                newcost =  gcost[p.x][p.y] + c
-                if self.__check(pn) and gcost[pn.x][pn.y] > newcost:
-                    gcost[pn.x][pn.y] = newcost
-                    parent[pn.x][pn.y] = p
-                    qps.put((heuristic(pn), pn))
 
         qps.put((heuristic(self.map.start), self.map.start))
         waypoints = []
@@ -126,7 +119,14 @@ class PathPlanner:
                     waypoints.append(w)
                 break
             else:
-                check(p)
+                # check(p)
+                for pn,c in self.__get_neighbors(p):
+                    newcost =  gcost[p.x][p.y] + c
+                    if self.__check(pn) and gcost[pn.x][pn.y] > newcost:
+                        gcost[pn.x][pn.y] = newcost
+                        parent[pn.x][pn.y] = p
+                        qps.put((heuristic(pn), pn))
+                    
         if len(waypoints) == 0:
             return []
         #waypoints = self.collect_wps(waypoints)
@@ -134,6 +134,60 @@ class PathPlanner:
             waypoints = self.path_simplification(waypoints)
         # Note: waypoints need to be reversed
         return waypoints
+
+    def _rrt(self, p_bias = 0.1):
+        """
+        biased rrt
+        """
+        step_len = min(self.map.height, self.map.width)/20.0
+        qps = PriorityQueue()
+        nodes = [self.map.start]
+        gcost = [0]
+        parent = [None]   
+
+        waypoints = []
+        while True:      # for _ in range(max_step)      
+            # 1. sample
+            if random.random() < p_bias:
+                q = self.map.goal
+            else:
+                q = self.__valid_sample()
+            # 2. nearest node
+            ni = 0
+            mdis = nodes[ni].dis(q)
+            onTree = False
+            for n in range(len(nodes)):
+                if nodes[ni] == q:
+                    onTree = True
+                    break
+                tdis = nodes[n].dis(q)
+                if tdis < mdis:
+                    mdis = tdis
+                    ni = n
+            if onTree:
+                continue
+            # 3. try one step
+            nn = Pos.portion(q, nodes[ni], min(1, step_len/mdis))
+            if self.__check(nn) and not self._obsinbetween(nodes[ni], nn):
+                # 4.1 check goal condition
+                if nn.dis(self.map.goal) < 1:    
+                    waypoints.append(nn)
+                    w = ni
+                    while w != None:
+                        waypoints.append(nodes[w])
+                        w = parent[w]
+                    break
+                nodes.append(nn)
+                gcost.append(nn.dis(nodes[ni]) + gcost[ni])
+                parent.append(ni)
+
+        if len(waypoints) == 0:
+            return []
+        if self.simplify:
+            waypoints = self.path_simplification(waypoints)
+        # Note: waypoints need to be reversed
+        return waypoints
+        
 
     def collect_wps(self, waypoints, eps = 1e-3):
         """merge waypoints in the same direction
@@ -161,7 +215,7 @@ class PathPlanner:
             else:
                 ps = p1
                 pe = p2
-            for i in range(1, pe.x - ps.x):
+            for i in range(1, pe.x - ps.x - 1):
                 if not self.__check(Pos(ps.x + i, (int)(i*s + ps.y))):
                     return True
         else:
@@ -172,7 +226,7 @@ class PathPlanner:
             else:
                 ps = p1
                 pe = p2
-            for i in range(1, pe.y - ps.y):
+            for i in range(1, pe.y - ps.y - 1):
                 if not self.__check(Pos((int)(i*s + ps.x), ps.y + i)):
                     return True
         return False
@@ -224,7 +278,15 @@ class PathPlanner:
             return self.__get_neighbors(p)
 
     def __check(self, p):
-        return not self.obs[p.x][p.y]
+        return not self.obs[p.x][p.y]    
+
+    def __valid_sample(self):
+        while True:
+            x = random.randint(0, self.map.height-1)
+            y = random.randint(0, self.map.width-1)
+            sample = Pos(x,y)
+            if self.__check(sample):
+                return sample
 
     """Visualization"""
     def _plot(self, path):
@@ -258,16 +320,17 @@ class PathPlanner:
 if __name__ == "__main__":
     # generate a random map
     # Note: 600*800 is too big for A star
-    h, w = 100, 200
+    #       using RRT instead
+    h, w = 600, 800
     rmap = GridMap(h, w, 0.01)
     rmap.set_start(Pos(0,0))
     rmap.set_goal(Pos(h-1, w-1))
     import random
-    obslist = [Pos(random.randint(8,h-8),random.randint(8,w-8)) for _ in range(10)]
+    obslist = [Pos(random.randint(8,h-8),random.randint(8,w-8)) for _ in range(100)]
     rmap.set_obs(obslist)
 
     # planner
-    ppr = PathPlanner(rmap,path_simplification=False, plot=True,neighbor=8)
+    ppr = PathPlanner(rmap,path_simplification=False, plot=True,neighbor=8, method="RRT")
     path = ppr.plan()
     #for p in path:
     #    print(p)

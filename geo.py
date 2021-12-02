@@ -31,6 +31,12 @@ class Pos:
     def dis_man(self, p):
         return abs(p.x - self.x) + abs(p.y - self.y)
 
+    @staticmethod
+    def portion(p1, p2, alpha):
+        if alpha < 0: alpha = 0.0
+        elif alpha > 1: alpha = 1.0
+        return Pos((int)(p1.x*alpha + p2.x*(1-alpha)), (int)(p1.y*alpha + p2.y*(1-alpha)))
+
     def __eq__(self, other):
         return self.x == other.x and self.y == other.y
     
