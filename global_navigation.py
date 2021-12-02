@@ -33,7 +33,8 @@ class PathPlanner:
 
         u can use 'set_map' to tell me the map, 
         and modify it with 'set_goal' and 'set_start';
-        or specify the map when calling 'plan'
+        or specify the map(without enlarging the obstacles) 
+        when calling 'plan'
         """
         self.map = map
         self.method = method
