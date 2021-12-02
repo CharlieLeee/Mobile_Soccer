@@ -13,6 +13,20 @@ from geo import *
 
 from queue import Queue
 
+def approach(pBall):
+    """
+    calculate a position for Thymio to approach the ball
+    that the ball in front of the Thymio will be at the goal position.
+    """
+    pass
+
+def assign_ori(path, endori):
+    """
+    assign orientation for waypoints
+    return list of States
+    """
+    pass
+
 class PathPlanner:
     def __init__(self, map = None, method = "A*", neighbor = 4, prune = False): 
         """tell me the map, I will give u a path

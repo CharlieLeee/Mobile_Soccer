@@ -10,13 +10,34 @@ Modified By: LI Jiangfan
 from global_navigation import *
 # import filtering
 
+global G_mc_timer
+
 class MotionController:
-    def __init__(self):
+    def __init__(self, time_interval = 10):
         """Control the Thymio
         
         Interface between high-level command and Thymio motion
         """
+        self.interval = time_interval # ms
         
+        pass
+
+    def approach(self, delta_r, delta_theta = 0):
+        """approach to the goal point"""
+        # u only move <interval> ms.
+        
+        pass
+
+    def rotate(self, delta_theta):
+        pass
+
+    def move(self, vel, omega):
+        """
+        move with transitional velocity and rotational velocity
+        """
+        pass
+
+    def stop(self):
         pass
 
     def go_pos(self, wps):
