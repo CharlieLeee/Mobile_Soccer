@@ -2,25 +2,28 @@
 Author: Chengkun Li
 LastEditors: Chengkun Li
 Date: 2021-11-25 00:32:13
-LastEditTime: 2021-12-02 18:37:43
+LastEditTime: 2021-12-02 19:09:02
 Description: All functions pertain to localization of the thymio using Kalman Filter.
 FilePath: /Mobile_Soccer/filtering.py
 '''
 
-import loguru
 import numpy as np
 import matplotlib.pyplot as plt
 from loguru import logger
+from geo import *
+
 
 class KF:
     """Kalman Filter Class
     The state of Thymio is encoded as [Px, Py, Rotation]
     Reference paper: https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.1021.234&rep=rep1&type=pdf
     """
-    def __init__(self, qx, qy, qtheta, rl, rr, b) -> None:
+    def __init__(self, init_state, init_cov, qx, qy, qtheta, rl, rr, b) -> None:
         """Initialization
 
         Args:
+            init_state (State): initial state of thymio
+            init_cov (np.array): inital covariance of thymio
             px (float): x position of thymio
             py (float): y position of Thymio
             theta (float): rotation angle of thymio (in rads)
@@ -47,6 +50,10 @@ class KF:
             [rr, 0],
             [0, rl]
         ])
+
+        # States and Covariance history
+        self.states = [init_state]
+        self.covs = [init_cov]
 
     def update_params(self, qx ,qy, qtheta, rl, rr):
         """Set the params of covariance matrix on the fly
@@ -107,9 +114,12 @@ class KF:
         ])
         return B
     @logger.catch
-    def kalman_filter(self, pre_state, pre_cov, dsr, dsl, measurement=None):
+    def kalman_filter(self, dsr, dsl, measurement=None):
         
         # Get previous state
+        pre_state = self.states[-1]
+        pre_cov = self.covs[-1]
+
         theta = pre_state[-1][0] # [x, y, theta]
         D = (dsl + dsr) / 2
         T = (dsr - dsl) / self.b
@@ -134,9 +144,16 @@ class KF:
             I = np.array(measurement).reshape(-1, 1) - est_state
             est_state += np.matmul(K, I)
             est_cov -= np.matmul(K, est_cov)
-
+        
+        self.states.append(est_state)
+        self.covs.append(est_cov)
+        
         return est_state, est_cov
 
+    def get_state(self):
+        state = self.states[-1]
+        x, y, theta = state[0][0], state[1][0], state[2][0]
+        return State(Pos(x, y), theta)
 
 
 if __name__ == '__main__':
@@ -146,18 +163,13 @@ if __name__ == '__main__':
     pre_cov = np.ones([3, 3]) * 0.03
     # displacement in left and right wheels
     dsl = [0.5, 0.5, 0.4, 0.7]
-    dsr = [0.3, 0.9, 0.9, 0.9]
-    # states and covariances
-    states = []
-    covs = []
+    dsr = [0.5, 0.5, 0.4, 0.9]
 
-    kf = KF(qx=0.1, qy=0.1, qtheta=0.3, rl=0.1, rr=0.1, b=0.08)
+    kf = KF(pre_state, pre_cov, qx=0.1, qy=0.1, qtheta=0.3, rl=0.1, rr=0.1, b=0.08)
     for i in range(len(dsl)):
-        states.append(pre_state)
-        covs.append(pre_cov)
-        pre_state, pre_cov = kf.kalman_filter(states[-1], covs[-1], dsl[i], dsr[i])
+        logger.info(kf.kalman_filter(dsl[i], dsr[i])[0])
+        # logger.info(kf.get_state())
     
-    plt.plot([state[0][0] for state in states], [state[1][0] for state in states])
+    # plt.plot([state[0][0] for state in states], [state[1][0] for state in states])
     
-    plt.show()
-    logger.info(states)
+    # plt.show()
