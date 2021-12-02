@@ -3,7 +3,7 @@ File: geo.py
 File Created: Wednesday, 24th November 2021 9:49:35 am
 Author: LI Jiangfan 
 -----
-Last Modified: Wednesday, 24th November 2021 11:57:04 am
+Last Modified: Monday, 29th November 2021 1:36:53 pm
 Modified By: LI Jiangfan 
 -----
 Description:
@@ -17,6 +17,8 @@ Tools Classes for map, ...
  V x
 """
 import math
+
+Thymio_Size = 0.08 # radius, in meters
 
 class Pos:
     def __init__(self, x, y):
@@ -46,6 +48,23 @@ class State:
     def delta_theta(self, s):
         return s.ori - self.ori
 
+    @staticmethod
+    def portion(p1, p2, alpha):
+        if alpha < 0: alpha = 0.0
+        elif alpha > 1: alpha = 1.0
+        return Pos((int)(p1.x*alpha + p2.x*(1-alpha)), (int)(p1.y*alpha + p2.y*(1-alpha)))
+
+    def __eq__(self, other):
+        return self.x == other.x and self.y == other.y
+    
+    def __lt__(self, other):
+        if self.x == other.x:
+            return self.y <= other.y
+        return self.x <= other.x
+
+    def __str__(self):
+        return "("+str(self.x)+","+str(self.y)+")"
+
 class GridMap: 
     # It's possible to use pixel map directly, 
     # It will be easier for Vision part, -- without merging operation
@@ -56,7 +75,8 @@ class GridMap:
     def __init__(self, h, w, s):
         self.height = h # x
         self.width = w  # y
-        self.scale = s
+        self.scale = s # in meters
+        self.obs_map = [[False for _ in range(self.width)] for _ in range(self.height)]
 
     def set_goal(self, p):
         self.goal = p
@@ -66,11 +86,14 @@ class GridMap:
 
     def set_obs(self, obslist):
         self.obs = obslist
+        for o in self.obs:
+            self.obs_map[o.x][o.y] = True
 
     """functions for Map Checking"""
     def check(self, p):
         # Will it be more efficient to use Boolean Map? 
         # -- depend on the number of obstacle cells.
-        for o in self.obs:
-            if p == o: return False
-        return True
+        #for o in self.obs:
+        #    if p == o: return False
+        #return True
+        return not self.obs_map[p.x][p.y]
