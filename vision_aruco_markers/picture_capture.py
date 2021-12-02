@@ -6,6 +6,11 @@ cv2.namedWindow("test")
 
 img_counter = 0
 
+import os
+import datetime
+mydir = os.path.join(os.getcwd(), datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+os.makedirs(mydir)
+
 while True:
     ret, frame = cam.read()
     if not ret:
@@ -20,7 +25,7 @@ while True:
         break
     elif k%256 == 32:
         # SPACE pressed
-        img_name = "opencv_frame_{}.png".format(img_counter)
+        img_name = mydir + "/opencv_frame_{}.png".format(img_counter)
         cv2.imwrite(img_name, frame)
         print("{} written!".format(img_name))
         img_counter += 1
