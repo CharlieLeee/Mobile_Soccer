@@ -113,6 +113,11 @@ class KF:
             [1/self.b, -1/self.b],
         ])
         return B
+    
+    @staticmethod
+    def plot_gaussian():
+        pass
+
     @logger.catch
     def kalman_filter(self, dsr, dsl, measurement=None):
         
@@ -167,7 +172,7 @@ if __name__ == '__main__':
 
     kf = KF(pre_state, pre_cov, qx=0.1, qy=0.1, qtheta=0.3, rl=0.1, rr=0.1, b=0.08)
     for i in range(len(dsl)):
-        logger.info(kf.kalman_filter(dsl[i], dsr[i])[0])
+        logger.info(kf.kalman_filter(dsl[i], dsr[i])[1])
         # logger.info(kf.get_state())
     
     # plt.plot([state[0][0] for state in states], [state[1][0] for state in states])
