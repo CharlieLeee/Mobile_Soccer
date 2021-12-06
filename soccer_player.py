@@ -13,13 +13,15 @@ Modified By: JiangfanLi (rdemezerl@gmail.com>)
 import time
 
 from geo import *
-import thymio_interface
+from Thymio import Thymio
 import motion_control
 import vision
 import filtering
 import global_navigation
 
 # -- Global Settings --
+THYMIO_PORT = "COM8"
+THYMIO_REFRESH_RATE = 1.0
 G_verbose = True
 S_camera_interval = 1000 #ms
 S_motion_interval = 10
@@ -29,7 +31,7 @@ S_epsilon_theta = 0.1
 
 S_stablize_filter_steps = 10
 # -- Controllers --
-G_th = thymio_interface.ThymioInterface()
+G_th = Thymio.serial(port=THYMIO_PORT, refreshing_rate=THYMIO_REFRESH_RATE)
 G_mc = motion_control.MotionController(G_th, S_motion_interval)
 G_mc.timer = time.time()
 G_vision = vision.Processor()
@@ -101,7 +103,7 @@ def main():
                     Global_path = Global_path[1:]
                     # assume Global_path is not empty because of 2.2.1
             loop_time = time.time() - starter
-            # TODO: how long does it?
+            # TODO: how long does it takes?
             #       then, which motor speed fit the period time
             #             should we stop to calibrate pose?
             if G_verbose:

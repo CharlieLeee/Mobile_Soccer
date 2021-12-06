@@ -6,15 +6,15 @@ Description:
 Motion Control with Thymio Interface
 '''
 
-from thymio_interface import ThymioInterface
-
+import filtering
+from Thymio import Thymio
 import time
 
 class MotionController:
     def __init__(self, thymio, time_interval = 0.1, # s 
                  eps_delta_r = 1, eps_delta_theta = 0.1,
                  max_speed = 100, 
-                 speed_scale = 0.001, # TODO (m/s) / speed_in_motor_command
+                 speed_scale = 0.000315, # (m/s) / speed_in_motor_command; 0.000315 for speed<200; 0.0003 for speed \in (200,400)
                  rotate_scale = 0.01, # TODO (rad/s) / speed_in_motor_command
                  ):
         """Motion Controller
@@ -88,11 +88,15 @@ class MotionController:
         move with transitional velocity and rotational velocity
         """
         vel = min(vel, self.max_speed - 2*abs(omega))
-        self.thymio.motor(vel-omega, vel+omega)        
+        self.thymio.set_var("motor.left.target", vel-omega)
+        self.thymio.set_var("motor.right.target", vel+omega)
         self.timer = time.time()
 
     def stop(self):
-        self.thymio.motor(0, 0)
+        """Stop both motors
+        """
+        self.thymio.set_var("motor.left.target", 0)
+        self.thymio.set_var("motor.right.target", 0)
 
     # -- Sensor --
     def obs_front(self):
