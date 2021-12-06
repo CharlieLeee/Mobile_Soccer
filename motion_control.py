@@ -36,6 +36,19 @@ class MotionController:
         self.rotate_scale = rotate_scale
         pass
 
+    def __del__(self):
+        self.thymio.terminating = True
+        self.thymio.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.thymio.close()
+
+    def close(self):
+        self.thymio.close()
+
     # -- Local Navigation --
     # !!! Please Move Local Navigation Module Here !!!
     def avoid(self):
@@ -124,3 +137,28 @@ class MotionController:
 
     def acc(self):
         pass
+
+if __name__ == "__main__":
+    
+    import time
+
+    th = Thymio.serial(port="COM6",refreshing_rate=0.1)
+    try:
+        mc = MotionController(th)
+        while True:
+            try:
+                if th["button.forward"]:
+                    mc.move(100)
+                elif th["button.left"]:
+                    mc.move(100, 30)
+                elif th["button.right"]:
+                    mc.move(100, -30)
+                elif th["button.center"]:
+                    mc.stop()
+                    break
+                print(th["prox.horizontal"])
+            except KeyError:
+                pass
+            time.sleep(0.2)
+    finally:
+        mc.close()

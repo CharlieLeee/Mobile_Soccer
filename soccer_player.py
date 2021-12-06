@@ -21,7 +21,7 @@ import filtering
 import global_navigation
 
 # -- Global Settings --
-THYMIO_PORT = "COM8"
+THYMIO_PORT = "COM6"
 THYMIO_REFRESH_RATE = 1.0
 G_verbose = True
 S_camera_interval = 1000 #ms
@@ -122,4 +122,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    finally:
+        G_mc.close()
