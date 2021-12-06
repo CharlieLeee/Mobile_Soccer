@@ -11,6 +11,7 @@ Modified By: JiangfanLi (rdemezerl@gmail.com>)
 
 
 import time
+import numpy as np
 
 from geo import *
 from Thymio import Thymio
@@ -24,6 +25,7 @@ THYMIO_PORT = "COM8"
 THYMIO_REFRESH_RATE = 1.0
 G_verbose = True
 S_camera_interval = 1000 #ms
+S_track_interval = 100 #ms
 S_motion_interval = 10
 
 S_epsilon_dis = 1
@@ -35,12 +37,15 @@ G_th = Thymio.serial(port=THYMIO_PORT, refreshing_rate=THYMIO_REFRESH_RATE)
 G_mc = motion_control.MotionController(G_th, S_motion_interval)
 G_mc.timer = time.time()
 G_vision = vision.Processor()
-G_filter = filtering.KF()
+pre_state = np.array([1, 1, 0]).reshape(-1, 1) # initial state
+pre_cov = np.ones([3, 3]) * 0.03 # initial covariance
+G_filter = filtering.KF(pre_state, pre_cov, qx=0.1, qy=0.1, qtheta=0.3, rl=0.1, rr=0.1, b=0.08)
 G_filter.timer = time.time()
 
 # -- States --
 # timers
 G_camera_timer = time.time()
+G_track_timer = time.time()
 
 def localizate():
     """Track Where Thymio is"""
@@ -94,14 +99,16 @@ def main():
                 break
             # 2.2.2 Is there obstacles on the front?
             if G_mc.obs_front():
-                G_mc.avoid() # do loval navigation for, like, 10ms
+                G_mc.avoid() # do local navigation for, like, 10ms
                 # TODO: replan
             else:
-                # 4. Follow the path
-                reached = G_mc.path_tracking(Global_path[0], Thymio_state)
-                if reached:
-                    Global_path = Global_path[1:]
-                    # assume Global_path is not empty because of 2.2.1
+                if starter - G_track_timer > S_track_interval:
+                    # 4. Follow the path    # <-- The only task can run under low frequency
+                    reached = G_mc.path_tracking(Global_path[0], Thymio_state)
+                    if reached:
+                        Global_path = Global_path[1:]
+                        # assume Global_path is not empty because of 2.2.1
+                    G_track_timer = starter
             loop_time = time.time() - starter
             # TODO: how long does it takes?
             #       then, which motor speed fit the period time

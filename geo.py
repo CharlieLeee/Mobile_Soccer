@@ -30,20 +30,6 @@ class Pos:
     def delta_theta(self, p):
         return math.atan2(p.y - self.y, p.x - self.x)
 
-class State:
-    def __init__(self, p, t):
-        self.pos = p
-        self.ori = t
-    
-    def dis(self, s):
-        return self.pos.dis(s.pos)
-
-    def headto(self, s):
-        return self.pos.delta_theta(s.pos)
-    
-    def delta_theta(self, s):
-        return s.ori - self.ori
-
     @staticmethod
     def portion(p1, p2, alpha):
         if alpha < 0: alpha = 0.0
@@ -59,7 +45,25 @@ class State:
         return self.x <= other.x
 
     def __str__(self):
-        return "("+str(self.x)+","+str(self.y)+")"
+        return F"({self.x},{self.x})"
+        
+class State:
+    def __init__(self, p, t):
+        self.pos = p
+        self.ori = t
+    
+    def dis(self, s):
+        return self.pos.dis(s.pos)
+
+    def headto(self, s):
+        return self.pos.delta_theta(s.pos)
+    
+    def delta_theta(self, s):
+        return s.ori - self.ori
+
+    def __str__(self) -> str:
+        return F"({self.pos.x}, {self.pos.y}, {self.ori})"
+
 
 class GridMap: 
     # It's possible to use pixel map directly, 

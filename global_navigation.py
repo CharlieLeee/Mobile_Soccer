@@ -14,6 +14,7 @@ from geo import *
 
 from queue import PriorityQueue
 import numpy as np
+import random
 
 import matplotlib.pyplot as plt
 
@@ -29,7 +30,11 @@ def assign_ori(path, endori):
     assign orientation for waypoints
     return list of States
     """
-    pass
+    sPath = [State(path[i], path[i+1].delta_theta(path[i]))\
+        for i in range(len(path) - 1)
+    ]
+    sPath.append(State(path[-1], endori))
+    return sPath
 
 class PathPlanner:
     def __init__(self, map = None, method = "A*", neighbor = 4, path_simplification = False, plot = False): 
@@ -50,7 +55,7 @@ class PathPlanner:
 
         self.plot = plot
         if self.plot:
-            self._plot(None)
+            self._plot()
     
     def set_map(self, map):
         self.map = map
@@ -145,10 +150,10 @@ class PathPlanner:
                     
         if len(waypoints) == 0:
             return []
-        #waypoints = self.collect_wps(waypoints)
+        waypoints.reverse()
+        waypoints = self.collect_wps(waypoints)
         if self.simplify:
             waypoints = self.path_simplification(waypoints)
-        # Note: waypoints need to be reversed
         return waypoints
 
     def _rrt(self, p_bias = 0.1):
@@ -305,7 +310,7 @@ class PathPlanner:
                 return sample
 
     """Visualization"""
-    def _plot(self, path):
+    def _plot(self, path = None):
         # plot the map
         self.map_image = np.zeros(shape=(self.map.height, self.map.width))
         def plot_point(p, value):
