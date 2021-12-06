@@ -25,6 +25,8 @@ class MotionController:
         self.thymio = thymio            # thymio interface
         self.interval = time_interval   # ms, control frequency
         self.timer = time.time()
+        self.displacement = [0, 0]
+        self.speed = [0, 0]
         
         self.eps_delta_r = eps_delta_r
         self.eps_delta_theta = eps_delta_theta
@@ -88,15 +90,32 @@ class MotionController:
         move with transitional velocity and rotational velocity
         """
         vel = min(vel, self.max_speed - 2*abs(omega))
-        self.thymio.set_var("motor.left.target", vel-omega)
-        self.thymio.set_var("motor.right.target", vel+omega)
-        self.timer = time.time()
+        self._set_motor(vel - omega, vel + omega)
 
     def stop(self):
         """Stop both motors
         """
-        self.thymio.set_var("motor.left.target", 0)
-        self.thymio.set_var("motor.right.target", 0)
+        self._set_motor(0, 0)
+
+    def _set_motor(self, ls, rs):
+        self.thymio.set_var("motor.left.target", ls)
+        self.thymio.set_var("motor.right.target", rs)
+        starter = time.time()
+        interval = starter - self.timer
+        self.timer = starter
+        for i in range(2):
+            self.displacement[i] += self.speed[i]*interval
+        self.speed = [ls, rs]
+
+    def get_displacement(self):
+        starter = time.time()
+        interval = starter - self.timer
+        self.timer = starter
+        for i in range(2):
+            self.displacement[i] += self.speed[i]*interval
+        ret = self.displacement
+        self.displacement = [0, 0]
+        return ret
 
     # -- Sensor --
     def obs_front(self):

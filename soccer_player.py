@@ -33,8 +33,9 @@ S_epsilon_theta = 0.1
 
 S_stablize_filter_steps = 10
 # -- Controllers --
-G_th = Thymio.serial(port=THYMIO_PORT, refreshing_rate=THYMIO_REFRESH_RATE)
-G_mc = motion_control.MotionController(G_th, S_motion_interval)
+G_mc = motion_control.MotionController(
+    Thymio.serial(port=THYMIO_PORT, refreshing_rate=THYMIO_REFRESH_RATE), 
+    S_motion_interval)
 G_mc.timer = time.time()
 G_vision = vision.Processor()
 pre_state = np.array([1, 1, 0]).reshape(-1, 1) # initial state
@@ -52,14 +53,17 @@ def localizate():
     global G_camera_timer
     starter = G_filter.timer
     # 3. Localization 
-    # 3.1 With Vision
+    # 3.1 odometer
+    dsl, dsr = G_mc.get_displacement()
+    # 3.2 With Vision
     if starter - G_camera_timer > S_camera_interval:
         vision_thymio_state = G_vision.getThymio()
         G_camera_timer = starter
-        thymio_state = G_filter.getState(vision_thymio_state)
-    # 3.2 Without Vision
-    else:
-        thymio_state = G_filter.getState()
+        G_filter.kalman_filter(dsr, dsl, vision_thymio_state)
+    else:        
+        G_filter.kalman_filter(dsr, dsl)
+    
+    thymio_state = G_filter.get_state()
     return thymio_state
 
 def main():
