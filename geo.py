@@ -14,7 +14,8 @@ Tools Classes for map, ...
 """
 import math
 
-Thymio_Size = 0.08 # radius, in meters
+Thymio_Size = 0.08 # length from the center to the front, assuming it's the collision radius.
+Ball_Size = 0.01 # radius
 
 class Pos:
     def __init__(self, x, y):

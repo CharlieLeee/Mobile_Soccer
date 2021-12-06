@@ -18,13 +18,6 @@ import random
 
 import matplotlib.pyplot as plt
 
-def approach(pBall):
-    """
-    calculate a position for Thymio to approach the ball
-    that the ball in front of the Thymio will be at the goal position.
-    """
-    pass
-
 def assign_ori(path, endori):
     """
     assign orientation for waypoints
@@ -56,6 +49,24 @@ class PathPlanner:
         self.plot = plot
         if self.plot:
             self._plot()
+        
+    
+    def approach(self, pBall):
+        """
+        calculate a position for Thymio to approach the ball
+        that the ball in front of the Thymio will be at the goal position.
+        """
+        num = (int)((Thymio_Size + Ball_Size) / self.map.scale)
+        q = PriorityQueue()
+        for i in range(max(0, pBall.x - num), 
+            min(self.map.height, pBall.x + num)):
+            for j in range(max(0, pBall.y), 
+                min(self.map.width, pBall.y + num)):
+                p = Pos(i,j)
+                if self.map.check(p):
+                    q.put((abs(pBall.dis(p) - (Thymio_Size + Ball_Size)), p))
+        dis, p = q.get()
+        return p
     
     def set_map(self, map):
         self.map = map
@@ -66,16 +77,13 @@ class PathPlanner:
     def set_start(self, p):
         self.map.start = p
 
-    #def add_goal(self, p)
-    #def add_obs(self, p, s)
-
     def enlarge_obs(self):
         """
         enlarge the obstacles 
         considering the size of Thymio
         """
         assert self.map is not None
-        num = (int)(Thymio_Size / self.map.scale)
+        num = (int)((Thymio_Size + 2*Ball_Size) / self.map.scale)
         self.obs = [[False for _ in range(self.map.width)] for _ in range(self.map.height)]
         def ava(x, y):
             return x >=0 and x<self.map.height and y>=0 and y<self.map.width

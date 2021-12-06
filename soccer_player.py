@@ -79,9 +79,9 @@ def main():
     for goal in ["ball", "gate"]:
         # 2.1 Task set up
         if goal == "ball":
-            Goal_state = global_navigation.approach(Ball_pos)
+            Goal_state = G_pp.approach(Ball_pos)
         else:
-            Goal_state = global_navigation.approach(Gate_pos)
+            Goal_state = G_pp.approach(Gate_pos)
         G_pp.set_goal(Goal_state.pos)
         G_pp.set_start(Thymio_state)
         path = G_pp.plan()
