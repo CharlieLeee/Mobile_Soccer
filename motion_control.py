@@ -8,16 +8,21 @@ Modified By: LI Jiangfan
 '''
 
 from global_navigation import *
-# import filtering
+from Thymio import Thymio
+# load configuration
+load_dotenv()
 
+# import filtering
+import filtering
 global G_mc_timer
 
 class MotionController:
-    def __init__(self, time_interval = 10):
+    def __init__(self, thymio: Thymio, time_interval: float=10):
         """Control the Thymio
         
         Interface between high-level command and Thymio motion
         """
+        self.thymio = thymio
         self.interval = time_interval # ms
         
         pass
@@ -38,8 +43,11 @@ class MotionController:
         pass
 
     def stop(self):
-        pass
-
+        """Stop both motors
+        """
+        self.thymio.set_var("motor.left.target", 0)
+        self.thymio.set_var("motor.right.target", 0)
+        
     def go_pos(self, wps):
         """Go to the position directly"""
         target = wps.get()
