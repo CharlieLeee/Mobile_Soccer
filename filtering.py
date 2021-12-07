@@ -34,8 +34,6 @@ class KF:
             rr (float): variance of right encoder
             b (float): distance between two wheels of robot
         """
-        self.est_state = np.zeros([3, 1])
-        self.est_covar = 0.01 * np.ones([3, 3])
         self.b = b # constant: distance between wheels 
         
         # self.H is omitted since H here is an eye(3)
@@ -114,9 +112,55 @@ class KF:
         ])
         return B
     
-    @staticmethod
-    def plot_gaussian():
-        pass
+    @logger.catch
+    def plot_gaussian(self, verbose=False, factor=400):
+        
+        def cov_ellipse(state, cov):
+            # Covariance matrix correspond to x and y position
+            Pxy = cov[0:2, 0:2]
+            eigval, eigvec = np.linalg.eig(Pxy)
+            
+            x_idx = np.argmax(eigval)
+            y_idx = np.argmin(eigval)
+            
+            T = np.arange(0, 2*np.pi+0.1, 0.1)
+            a = math.sqrt(eigval[x_idx])
+            b = math.sqrt(eigval[y_idx])
+            x = [a * math.cos(t) for t in T]
+            y = [b * math.sin(t) for t in T]
+
+            angle = math.atan2(eigvec[y_idx][1], eigvec[y_idx][0])
+            Rot = np.array([
+                [math.cos(angle), math.sin(angle)],
+                [-math.sin(angle), math.cos(angle)]
+            ])
+            fx = np.matmul(Rot, np.array([x, y]))
+            px = np.array(fx[0, :] + state[0][0])
+            py = np.array(fx[1, :] + state[1][0])
+            
+            return px, py
+
+        # Plot
+        fig, ax = plt.subplots()
+        ax.set_facecolor('green')
+        x = np.array(self.states)[:, 0, :]
+        y = np.array(self.states)[:, 1, :]
+        ax.plot(x, y, '-w', \
+                label='states')
+        for i in range(len(self.states)):
+            px, py = cov_ellipse(self.states[i], self.covs[i]/factor)
+            
+            if i == 0:
+                ax.fill(px, py, alpha=0.4, facecolor='yellow', edgecolor='yellow', \
+                    linewidth=1, zorder=1, label='covariances')
+            ax.fill(px, py, alpha=0.4, facecolor='yellow', edgecolor='yellow', \
+                    linewidth=1, zorder=1)
+            # ax.plot(px, py, '--r', label='covariance at step {}'.format(i))
+        ax.set_title('State of Thymio')
+        ax.legend()
+        fig.tight_layout()
+        plt.show()
+        
 
     @logger.catch
     def kalman_filter(self, dsr, dsl, measurement=None):
@@ -125,7 +169,7 @@ class KF:
         pre_state = self.states[-1]
         pre_cov = self.covs[-1]
 
-        theta = pre_state[-1][0] % (2*np.pi)# [x, y, theta]
+        theta = pre_state[-1][0] % (2*np.pi) # [x, y, theta]
         D = (dsl + dsr) / 2
         T = (dsr - dsl) / self.b
         
@@ -167,14 +211,16 @@ if __name__ == '__main__':
     # initial covariance
     pre_cov = np.ones([3, 3]) * 0.03
     # displacement in left and right wheels
-    dsl = [0.5, 0.5, 0.4, 0.7]
-    dsr = [0.5, 0.5, 0.4, 0.9]
+    dsl = [1.5, 1.5, 1.4, 1.7]
+    dsr = [1.5, 1.5, 1.4, 1.7]
+    measurement = [[2.5, 1, 0], [4.0, 1, 0], None, None]
 
-    kf = KF(pre_state, pre_cov, qx=0.1, qy=0.1, qtheta=0.3, rl=0.1, rr=0.1, b=0.08)
+    kf = KF(pre_state, pre_cov, qx=0.3, qy=0.3, qtheta=0.3, rl=0.1, rr=0.1, b=0.08)
     for i in range(len(dsl)):
-        logger.info(kf.kalman_filter(dsl[i], dsr[i])[1])
-        # logger.info(kf.get_state())
-    
-    # plt.plot([state[0][0] for state in states], [state[1][0] for state in states])
-    
-    # plt.show()
+        print(kf.kalman_filter(dsl[i], dsr[i], measurement[i]))
+    kf.plot_gaussian()
+
+    kfn = KF(pre_state, pre_cov, qx=0.3, qy=0.3, qtheta=0.3, rl=0.1, rr=0.1, b=0.08)
+    for i in range(len(dsl)):
+        print(kfn.kalman_filter(dsl[i], dsr[i]))
+    kfn.plot_gaussian()

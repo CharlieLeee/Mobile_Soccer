@@ -1,0 +1,2 @@
+from Thymio import Thymio
+
