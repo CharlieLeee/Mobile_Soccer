@@ -40,7 +40,7 @@ G_mc.timer = time.time()
 G_vision = vision.Processor()
 pre_state = np.array([1, 1, 0]).reshape(-1, 1) # initial state
 pre_cov = np.ones([3, 3]) * 0.03 # initial covariance
-G_filter = filtering.KF(pre_state, pre_cov, qx=0.1, qy=0.1, qtheta=0.3, rl=0.1, rr=0.1, b=0.08)
+G_filter = filtering.KF(pre_state, pre_cov, qx=0.1, qy=0.1, qtheta=0.3, rl=0.1, rr=0.1, b=0.093)
 G_filter.timer = time.time()
 
 # -- States --
@@ -115,7 +115,7 @@ def main():
                         # assume Global_path is not empty because of 2.2.1
                     G_track_timer = starter
             loop_time = time.time() - starter
-            # TODO: how long does it takes?
+            # TODO: how long does it takes? -- about 1ms
             #       then, which motor speed fit the period time
             #             should we stop to calibrate pose?
             if G_verbose:

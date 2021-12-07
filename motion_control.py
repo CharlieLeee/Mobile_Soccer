@@ -68,7 +68,7 @@ class MotionController:
         if delta_r < self.eps_delta_r:
             # check the rotation
             delta_theta = Thymio_state.delta_theta(waypoint)
-            if delta_theta < self.eps_delta_theta:
+            if abs(delta_theta) < self.eps_delta_theta:
                 if self.verbose:
                     print("Path Finished")
                 return True
@@ -77,12 +77,13 @@ class MotionController:
         else:
             # 4.2 Go to the next waypoint
             headto_theta = Thymio_state.headto(waypoint)
+            delta_theta = headto_theta - Thymio_state.ori
             if self.verbose:
                 print(F"headto_theta: {headto_theta}")
-            if abs(headto_theta) > 1.0:
-                self.rotate(headto_theta)
-            elif abs(headto_theta) > self.eps_delta_theta:
-                self.approach(delta_r, headto_theta)
+            if abs(delta_theta) > 1.0:
+                self.rotate(delta_theta)
+            elif abs(delta_theta) > self.eps_delta_theta:
+                self.approach(delta_r, delta_theta)
             else:
                 self.approach(delta_r, 0)
             return False
@@ -98,13 +99,19 @@ class MotionController:
         # assume u only move <interval> s. 
         advance_speed = min(1000.0*delta_r/self.interval/self.speed_scale, self.max_speed)
         delta_speed = 1000.0*delta_theta/self.interval/self.rotate_scale
-        self.move(advance_speed, min(delta_speed, self.max_speed/2))
+        if delta_speed > 0:
+            self.move(advance_speed, min(delta_speed, self.max_speed/2))
+        else:
+            self.move(advance_speed, max(delta_speed, -self.max_speed/2))
 
     def rotate(self, delta_theta):
         """rotate in place
         """
-        delta_speed = 1000.0*delta_theta/self.interval/self.rotate_scale
-        self.move(0, min(delta_speed, self.max_speed))
+        delta_speed = delta_theta/(self.interval/1000.0)/self.rotate_scale
+        if delta_speed > 0:
+            self.move(0, min(delta_speed, self.max_speed))
+        else:
+            self.move(0, max(delta_speed, -self.max_speed))
 
     def move(self, vel, omega = 0):
         """
@@ -126,6 +133,8 @@ class MotionController:
         self.timer = starter
         rls = self.thymio.get_var("motor.left.speed")
         rrs = self.thymio.get_var("motor.right.speed")
+        rls = rls if rls < 2 ** 15 else rls - 2 ** 16
+        rrs = rrs if rrs < 2 ** 15 else rrs - 2 ** 16
         self.displacement[0] += rls*interval*self.speed_scale
         self.displacement[1] += rrs*interval*self.speed_scale
 

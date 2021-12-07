@@ -125,7 +125,7 @@ class KF:
         pre_state = self.states[-1]
         pre_cov = self.covs[-1]
 
-        theta = pre_state[-1][0] # [x, y, theta]
+        theta = pre_state[-1][0] % (2*np.pi)# [x, y, theta]
         D = (dsl + dsr) / 2
         T = (dsr - dsl) / self.b
         
