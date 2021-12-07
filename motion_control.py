@@ -5,10 +5,14 @@ Author: JiangfanLi
 Description: 
 Motion Control with Thymio Interface
 '''
-
+from loguru import logger
+from numpy.core.numeric import load
 import filtering
 from Thymio import Thymio
 import time
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 class MotionController:
     def __init__(self, thymio, time_interval = 10, # ms 
@@ -133,6 +137,7 @@ class MotionController:
         self.timer = starter
         rls = self.thymio.get_var("motor.left.speed")
         rrs = self.thymio.get_var("motor.right.speed")
+        rls = int(rls * float(os.getenv("OFFSET_WHEELS")))
         rls = rls if rls < 2 ** 15 else rls - 2 ** 16
         rrs = rrs if rrs < 2 ** 15 else rrs - 2 ** 16
         self.displacement[0] += rls*interval*self.speed_scale
@@ -141,9 +146,11 @@ class MotionController:
     def _set_motor(self, ls, rs):
         ls = (int)(ls)
         rs = (int)(rs)
+        l_speed = int(ls / float(os.getenv("OFFSET_WHEELS")))
         l_speed = ls if ls >= 0 else 2 ** 16 + ls
         r_speed = rs if rs >= 0 else 2 ** 16 + rs
         self.update_displacement()
+        logger.info(l_speed)
         self.thymio.set_var("motor.left.target", l_speed)
         self.thymio.set_var("motor.right.target", r_speed)
 
