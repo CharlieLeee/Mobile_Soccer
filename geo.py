@@ -31,8 +31,8 @@ class Pos:
     def delta_theta(self, p):
         return math.atan2(p.y - self.y, p.x - self.x)
 
-    def divided(self, f):
-        return Pos(self.x/f, self.y/f)
+    def multiply(self, f):
+        return Pos(self.x*f, self.y*f)
 
     @staticmethod
     def portion(p1, p2, alpha):
@@ -65,8 +65,8 @@ class State:
     def delta_theta(self, s):
         return s.ori - self.ori
 
-    def divided(self, f):
-        return State(self.p.divided(f), self.t)
+    def multiply(self, f):
+        return State(self.pos.multiply(f), self.ori)
 
     def __str__(self) -> str:
         return F"({self.pos.x}, {self.pos.y}, {self.ori})"

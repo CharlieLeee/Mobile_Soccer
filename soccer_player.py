@@ -89,7 +89,7 @@ def main():
         G_pp.set_goal(Goal_state.pos)
         G_pp.set_start(Thymio_state)
         path = G_pp.plan()
-        Goal_state = Goal_state.divided(G_map.scale)
+        Goal_state = Goal_state.multiply(G_map.scale)
         Global_path = G_pp.assign_ori(path, Goal_state.ori)
         # 2.2 Tackle the task
         while True:

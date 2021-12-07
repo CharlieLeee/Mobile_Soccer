@@ -71,10 +71,57 @@ class PathPlanner:
         assign orientation for waypoints
         return list of States
         """
-        sPath = [State(path[i], path[i+1].delta_theta(path[i])).divided(self.map.scale)\
-            for i in range(len(path) - 1)
+        sPath = [State(path[i].multiply(self.map.scale), path[i].delta_theta(path[i+1]))\
+            for i in range(1, len(path) - 1)
         ]
-        sPath.append(State(path[-1].divided(self.map.scale), endori))
+        q = PriorityQueue()
+        goal = path[-1]
+        tanv = math.tan(endori)
+        if abs(tanv) < 1:
+            dir = 1 if abs(endori) > math.pi/2 else -1
+            for i in range(1, self.map.height):
+                x = goal.x + i*dir
+                if x >= 0 and x < self.map.height:
+                    y = goal.y + (int)(i*tanv)
+                    if y >= 0 and y < self.map.width:
+                        p = Pos(x,y)
+                        if self.__check(p):
+                            if not self._obsinbetween(p, path[-2]):
+                                q.put((abs(p.dis(goal) - Thymio_Size/self.map.scale), p))
+                            else:
+                                break
+                        else:
+                            break
+                    else:
+                        break
+                else:
+                    break
+        else:
+            dir = 1 if endori > math.pi else -1
+            for j in range(self.map.width):
+                y = goal.y + j*dir
+                if y >= 0 and y < self.map.width:
+                    x = goal.x + (int)(j/tanv)
+                    if x >= 0 and x < self.map.height:
+                        p = Pos(x,y)
+                        if self.__check(p):
+                            if not self._obsinbetween(p, path[-2]):
+                                q.put((abs(p.dis(goal) - Thymio_Size/self.map.scale), p))
+                            else:
+                                break
+                        else:
+                            break
+                    else:
+                        break
+                else:
+                    break
+
+        c, p = q.get()
+        sPath.append(State(p.multiply(self.map.scale), endori))
+        sPath[-2].ori = path[-2].delta_theta(p)
+        sPath.append(State(goal.multiply(self.map.scale), endori))
+        for s in sPath:
+            print(s)
         return sPath
 
     def enlarge_obs(self):
@@ -350,17 +397,19 @@ if __name__ == "__main__":
     # generate a random map
     # Note: 600*800 is too big for A star
     #       using RRT instead
-    h, w = 600, 800
+    h, w = 30, 40
     rmap = GridMap(h, w, 0.01)
     rmap.set_start(Pos(0,0))
     rmap.set_goal(Pos(h-1, w-1))
     import random
-    obslist = [Pos(random.randint(8,h-8),random.randint(8,w-8)) for _ in range(100)]
+    obslist = [Pos(random.randint(10,h-10),random.randint(10,w-10)) for _ in range(3)]
     rmap.set_obs(obslist)
 
     # planner
-    ppr = PathPlanner(rmap,path_simplification=False, plot=True,neighbor=8, method="RRT")
+    ppr = PathPlanner(rmap,path_simplification=False, plot=True,neighbor=8, method="A*")
     path = ppr.plan()
+    spath = ppr.assign_ori(path, 0.0)
+    ppr._plot([Pos((int)(s.pos.x/0.01), (int)(s.pos.y/0.01)) for s in spath])
     #for p in path:
     #    print(p)
     
