@@ -109,7 +109,7 @@ def main():
             else:
                 if starter - G_track_timer > S_track_interval:
                     # 4. Follow the path    # <-- The only task can run under low frequency
-                    reached = G_mc.path_tracking(Global_path[0], Thymio_state)
+                    reached = G_mc.path_tracking(Global_path[0], Thymio_state, len(Global_path) == 1)
                     if reached:
                         Global_path = Global_path[1:]
                         # assume Global_path is not empty because of 2.2.1

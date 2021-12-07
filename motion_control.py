@@ -57,7 +57,7 @@ class MotionController:
         pass
 
     # -- Path Tracking --        
-    def path_tracking(self, waypoint, Thymio_state):
+    def path_tracking(self, waypoint, Thymio_state, theta_track = False):
         """Follow the path
 
         @return: waypoint reached
@@ -68,7 +68,7 @@ class MotionController:
         if delta_r < self.eps_delta_r:
             # check the rotation
             delta_theta = Thymio_state.delta_theta(waypoint)
-            if abs(delta_theta) < self.eps_delta_theta:
+            if not theta_track or abs(delta_theta) < self.eps_delta_theta:
                 if self.verbose:
                     print("Path Finished")
                 return True
