@@ -25,16 +25,6 @@ def approach(pBall):
     """
     pass
 
-def assign_ori(path, endori):
-    """
-    assign orientation for waypoints
-    return list of States
-    """
-    sPath = [State(path[i], path[i+1].delta_theta(path[i]))\
-        for i in range(len(path) - 1)
-    ]
-    sPath.append(State(path[-1], endori))
-    return sPath
 
 class PathPlanner:
     def __init__(self, map = None, method = "A*", neighbor = 4, path_simplification = False, plot = False): 
@@ -68,6 +58,17 @@ class PathPlanner:
 
     #def add_goal(self, p)
     #def add_obs(self, p, s)
+
+    def assign_ori(self, path, endori):
+        """
+        assign orientation for waypoints
+        return list of States
+        """
+        sPath = [State(path[i], path[i+1].delta_theta(path[i])).divided(self.map.scale)\
+            for i in range(len(path) - 1)
+        ]
+        sPath.append(State(path[-1].divided(self.map.scale), endori))
+        return sPath
 
     def enlarge_obs(self):
         """

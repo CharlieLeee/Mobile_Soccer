@@ -25,8 +25,8 @@ THYMIO_PORT = "COM6"
 THYMIO_REFRESH_RATE = 1.0
 G_verbose = True
 S_camera_interval = 1000 #ms
-S_track_interval = 100 #ms
-S_motion_interval = 10
+S_motion_interval = 10 #ms
+S_track_interval = 1.0 #s
 
 S_epsilon_dis = 1
 S_epsilon_theta = 0.1
@@ -35,7 +35,7 @@ S_stablize_filter_steps = 10
 # -- Controllers --
 G_mc = motion_control.MotionController(
     Thymio.serial(port=THYMIO_PORT, refreshing_rate=THYMIO_REFRESH_RATE), 
-    S_motion_interval)
+    S_motion_interval, verbose=G_verbose)
 G_mc.timer = time.time()
 G_vision = vision.Processor()
 pre_state = np.array([1, 1, 0]).reshape(-1, 1) # initial state
@@ -89,7 +89,8 @@ def main():
         G_pp.set_goal(Goal_state.pos)
         G_pp.set_start(Thymio_state)
         path = G_pp.plan()
-        Global_path = global_navigation.assign_ori(path, Goal_state.ori)
+        Goal_state = Goal_state.divided(G_map.scale)
+        Global_path = G_pp.assign_ori(path, Goal_state.ori)
         # 2.2 Tackle the task
         while True:
             starter = time.time()

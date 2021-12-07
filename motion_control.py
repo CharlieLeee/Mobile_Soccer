@@ -11,11 +11,12 @@ from Thymio import Thymio
 import time
 
 class MotionController:
-    def __init__(self, thymio, time_interval = 0.1, # s 
-                 eps_delta_r = 1, eps_delta_theta = 0.1,
+    def __init__(self, thymio, time_interval = 10, # ms 
+                 eps_delta_r = 0.005, eps_delta_theta = 0.01,
                  max_speed = 100, 
                  speed_scale = 0.000315, # (m/s) / speed_in_motor_command; 0.000315 for speed<200; 0.0003 for speed \in (200,400)
-                 rotate_scale = 0.01, # TODO (rad/s) / speed_in_motor_command
+                 rotate_scale = 0.006, # TODO (rad/s) / speed_in_motor_command
+                 verbose = False
                  ):
         """Motion Controller
 
@@ -23,7 +24,7 @@ class MotionController:
         Interface between high-level command and Thymio motion
         """
         self.thymio = thymio            # thymio interface
-        self.interval = time_interval   # ms, control frequency
+        self.interval = time_interval   # s, control frequency
         self.timer = time.time()
         self.displacement = [0, 0]
         self.speed = [0, 0]
@@ -34,7 +35,8 @@ class MotionController:
         self.max_speed = max_speed
         self.speed_scale = speed_scale
         self.rotate_scale = rotate_scale
-        pass
+
+        self.verbose = verbose
 
     def __del__(self):
         self.thymio.terminating = True
@@ -55,7 +57,7 @@ class MotionController:
         pass
 
     # -- Path Tracking --        
-    def path_tracking(self, waypoint, Thymio_state, verbose = False):
+    def path_tracking(self, waypoint, Thymio_state):
         """Follow the path
 
         @return: waypoint reached
@@ -67,7 +69,7 @@ class MotionController:
             # check the rotation
             delta_theta = Thymio_state.delta_theta(waypoint)
             if delta_theta < self.eps_delta_theta:
-                if verbose:
+                if self.verbose:
                     print("Path Finished")
                 return True
             else:
@@ -75,7 +77,11 @@ class MotionController:
         else:
             # 4.2 Go to the next waypoint
             headto_theta = Thymio_state.headto(waypoint)
-            if headto_theta > self.eps_delta_theta:
+            if self.verbose:
+                print(F"headto_theta: {headto_theta}")
+            if abs(headto_theta) > 1.0:
+                self.rotate(headto_theta)
+            elif abs(headto_theta) > self.eps_delta_theta:
                 self.approach(delta_r, headto_theta)
             else:
                 self.approach(delta_r, 0)
@@ -87,21 +93,25 @@ class MotionController:
         
             move with modification of direction
         """
+        if self.verbose:
+            print(F"approach to dr:{delta_r}, dt:{delta_theta}")
         # assume u only move <interval> s. 
-        advance_speed = delta_r/self.interval/self.speed_scale, self.max_speed
-        delta_speed = delta_theta/self.interval/self.rotate_scale
+        advance_speed = min(1000.0*delta_r/self.interval/self.speed_scale, self.max_speed)
+        delta_speed = 1000.0*delta_theta/self.interval/self.rotate_scale
         self.move(advance_speed, min(delta_speed, self.max_speed/2))
 
     def rotate(self, delta_theta):
         """rotate in place
         """
-        delta_speed = delta_theta/self.interval/self.rotate_scale
+        delta_speed = 1000.0*delta_theta/self.interval/self.rotate_scale
         self.move(0, min(delta_speed, self.max_speed))
 
     def move(self, vel, omega = 0):
         """
         move with transitional velocity and rotational velocity
         """
+        if self.verbose:
+            print(F"move with {vel}, {omega}")
         vel = min(vel, self.max_speed - 2*abs(omega))
         self._set_motor(vel - omega, vel + omega)
 
@@ -110,24 +120,30 @@ class MotionController:
         """
         self._set_motor(0, 0)
 
-    def _set_motor(self, ls, rs):
-        self.thymio.set_var("motor.left.target", ls)
-        self.thymio.set_var("motor.right.target", rs)
+    def update_displacement(self):
         starter = time.time()
         interval = starter - self.timer
         self.timer = starter
-        for i in range(2):
-            self.displacement[i] += self.speed[i]*interval
-        self.speed = [ls, rs]
+        rls = self.thymio.get_var("motor.left.speed")
+        rrs = self.thymio.get_var("motor.right.speed")
+        self.displacement[0] += rls*interval*self.speed_scale
+        self.displacement[1] += rrs*interval*self.speed_scale
+
+    def _set_motor(self, ls, rs):
+        ls = (int)(ls)
+        rs = (int)(rs)
+        l_speed = ls if ls >= 0 else 2 ** 16 + ls
+        r_speed = rs if rs >= 0 else 2 ** 16 + rs
+        self.update_displacement()
+        self.thymio.set_var("motor.left.target", l_speed)
+        self.thymio.set_var("motor.right.target", r_speed)
 
     def get_displacement(self):
-        starter = time.time()
-        interval = starter - self.timer
-        self.timer = starter
-        for i in range(2):
-            self.displacement[i] += self.speed[i]*interval
+        self.update_displacement()
         ret = self.displacement
         self.displacement = [0, 0]
+        if self.verbose:
+            print(F"Displacement:{ret}")
         return ret
 
     # -- Sensor --
