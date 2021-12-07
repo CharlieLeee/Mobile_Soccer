@@ -31,6 +31,9 @@ class Pos:
     def delta_theta(self, p):
         return math.atan2(p.y - self.y, p.x - self.x)
 
+    def divided(self, f):
+        return Pos(self.x/f, self.y/f)
+
     @staticmethod
     def portion(p1, p2, alpha):
         if alpha < 0: alpha = 0.0
@@ -61,6 +64,9 @@ class State:
     
     def delta_theta(self, s):
         return s.ori - self.ori
+
+    def divided(self, f):
+        return State(self.p.divided(f), self.t)
 
     def __str__(self) -> str:
         return F"({self.pos.x}, {self.pos.y}, {self.ori})"
@@ -98,3 +104,12 @@ class GridMap:
         #    if p == o: return False
         #return True
         return not self.obs_map[p.x][p.y]
+    
+
+if __name__ == "__main__":
+    s1 = State(Pos(0,0), 0.0)
+    s2 = State(Pos(3,4), 0.2)
+    print(F"s1:{s1}, s2:{s2}")
+    print(F"s1.dis(s2):{s1.dis(s2)}")
+    print(F"s1.delta_theta(s2):{s1.delta_theta(s2)}")
+    print(F"s1.headto(s2):{s1.headto(s2)}")
