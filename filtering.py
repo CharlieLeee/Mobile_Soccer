@@ -114,9 +114,45 @@ class KF:
         ])
         return B
     
-    @staticmethod
-    def plot_gaussian():
-        pass
+    def plot_gaussian(self, verbose=False):
+        
+        def cov_ellipse(state, cov):
+            # Covariance matrix correspond to x and y position
+            Pxy = cov[0:2, 0:2]
+            eigval, eigvec = np.linalg.eig(Pxy)
+            
+            x_idx = np.argmax(eigval)
+            y_idx = np.argmin(eigval)
+            
+            T = np.arange(0, 2*np.pi+0.1, 0.1)
+            a = math.sqrt(eigval[x_idx])
+            b = math.sqrt(eigval[y_idx])
+            x = [a * math.cos(t) for t in T]
+            y = [b * math.sin(t) for t in T]
+
+            angle = math.atan2(eigvec[y_idx][1], eigvec[y_idx][0])
+            Rot = np.array([
+                [math.cos(angle), math.sin(angle)],
+                [-math.sin(angle), math.cos(angle)]
+            ])
+            fx = np.matmul(Rot, np.array([x, y].reshape(-1, 1)))
+            px = np.array(fx[0, :] + state[0, 0])
+            py = np.array(fx[1, :] + state[0, 1])
+            
+            return px, py
+
+        # Plot
+        fig, ax = plt.subplots()
+        for i in range(len(self.states)):
+            factor = 1000 # For visualization
+            px, py = cov_ellipse(self.states[i], self.covs[i]/factor)
+            ax.plot(self.states[i][0, 0], self.states[i][1, 0], '--r', \
+                color='green', lable='states')
+            ax.plot(px, py, '--r', label='covariance')
+        ax.set_title('State of Thymio')
+        fig.tight_layout()
+        plt.show()
+        
 
     @logger.catch
     def kalman_filter(self, dsr, dsl, measurement=None):
@@ -125,7 +161,7 @@ class KF:
         pre_state = self.states[-1]
         pre_cov = self.covs[-1]
 
-        theta = pre_state[-1][0] # [x, y, theta]
+        theta = pre_state[-1][0] % (2*np.pi) # [x, y, theta]
         D = (dsl + dsr) / 2
         T = (dsr - dsl) / self.b
         
