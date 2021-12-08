@@ -120,8 +120,8 @@ class PathPlanner:
         sPath.append(State(p.multiply(self.map.scale), endori))
         sPath[-2].ori = path[-2].delta_theta(p)
         sPath.append(State(goal.multiply(self.map.scale), endori))
-        for s in sPath:
-            print(s)
+        # for s in sPath:
+        #     print(s)
         return sPath
 
     def enlarge_obs(self):
@@ -141,7 +141,7 @@ class PathPlanner:
                     if num != 0:
                         for m in range(-num, num):
                             for n in range(-num, num):
-                                if ava(i+m, j+n):
+                                if m**2 + n**2 <= num ** 2 and ava(i+m, j+n):
                                     self.obs[i+m][j+n] = True
 
     def plan(self, map = None):
@@ -291,8 +291,9 @@ class PathPlanner:
             else:
                 ps = p1
                 pe = p2
+            dir = 1.0 if ps.y < pe.y else -1.0
             for i in range(1, pe.x - ps.x - 1):
-                if not self.__check(Pos(ps.x + i, (int)(i*s + ps.y))):
+                if not self.__check(Pos(ps.x + i, (int)(dir*i*s + ps.y))):
                     return True
         else:
             s = abs(1.0*(p1.x - p2.x)/(p1.y - p2.y))
@@ -302,8 +303,9 @@ class PathPlanner:
             else:
                 ps = p1
                 pe = p2
+            dir = 1.0 if ps.x < pe.x else -1.0
             for i in range(1, pe.y - ps.y - 1):
-                if not self.__check(Pos((int)(i*s + ps.x), ps.y + i)):
+                if not self.__check(Pos((int)(ps.x + dir*i*s), ps.y + i)):
                     return True
         return False
 
@@ -388,7 +390,7 @@ class PathPlanner:
                 sp = self.path_simplification(cp)
                 for p in sp:
                     plot_point(p,250)
-                    print(p)
+                    # print(p)
 
         plt.imshow(self.map_image)
         plt.show()
@@ -402,11 +404,11 @@ if __name__ == "__main__":
     rmap.set_start(Pos(0,0))
     rmap.set_goal(Pos(h-1, w-1))
     import random
-    obslist = [Pos(random.randint(10,h-10),random.randint(10,w-10)) for _ in range(3)]
+    obslist = [Pos(random.randint(11,h-11),random.randint(11,w-11)) for _ in range(3)]
     rmap.set_obs(obslist)
 
     # planner
-    ppr = PathPlanner(rmap,path_simplification=False, plot=True,neighbor=8, method="A*")
+    ppr = PathPlanner(rmap,path_simplification=True, plot=True,neighbor=8, method="A*")
     path = ppr.plan()
     spath = ppr.assign_ori(path, 0.0)
     ppr._plot([Pos((int)(s.pos.x/0.01), (int)(s.pos.y/0.01)) for s in spath])
