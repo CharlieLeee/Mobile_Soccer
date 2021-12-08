@@ -50,10 +50,10 @@ while True:
 	frame = cv2.resize(frame, (width, height), interpolation=cv2.INTER_CUBIC)
 	corners, ids, rejected = cv2.aruco.detectMarkers(frame, arucoDict, parameters=arucoParams)
 
-	detected_markers = aruco_display(corners, ids, rejected, frame)
+	detected_markers, center = aruco_display(corners, ids, rejected, frame)
 
 	cv2.imshow("Image", detected_markers)
-
+	print(center)
 	key = cv2.waitKey(1) & 0xFF
 	if key == ord("q"):
 	    break

@@ -10,7 +10,7 @@ import sys
 
 
 ap = argparse.ArgumentParser()
-ap.add_argument("-i", "--image", required=True, help="path to input image containing ArUCo tag")
+ap.add_argument("-i", "--image", type=str, default="../opencv_frame_0.png", help="path to input image containing ArUCo tag")
 ap.add_argument("-t", "--type", type=str, default="DICT_ARUCO_ORIGINAL", help="type of ArUCo tag to detect")
 args = vars(ap.parse_args())
 
@@ -18,6 +18,8 @@ args = vars(ap.parse_args())
 
 print("Loading image...")
 image = cv2.imread(args["image"])
+cv2.imshow("imga", image)
+cv2.waitKey
 h,w,_ = image.shape
 width=600
 height = int(width*(h/w))
