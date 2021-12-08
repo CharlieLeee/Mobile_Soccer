@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
-import scipy
+from sklearn import mixture
+from scipy import linalg
 
 from geo import *
 
@@ -21,7 +22,7 @@ class VisionProcessor():
         self.cap.release()
         cv2.destroyAllWindows()
 
-    def getImage(self):
+    def _getImage(self):
         """Get image from camera"""
         if self.cap.isOpened():
             self.image = self.cap.read()
@@ -30,25 +31,35 @@ class VisionProcessor():
         return self.image
 
     def getMap(self, update = False):
+        om = self._getObs(update)
+        while om is None:
+            om = self._getObs(True)
+        return GridMap(FieldHeight, FieldWidth, FieldScale, om)
+
+    def _getObs(self, update = False):
         if update:
-            self.getImage()
+            self._getImage()
             self.M = VisionProcessor.align_field(self.image)
             self.wrapped_image = VisionProcessor.warp(self.image, self.M)
-        gmap = GridMap(FieldHeight, FieldWidth, FieldScale, 
-                    obs_map=VisionProcessor.obstacles_map(self.wrapped_image, color='pink'))
         
-        return gmap
-
+        return VisionProcessor.obstacles_map(self.wrapped_image, color='pink')
+    
     def getBall(self, update = False):
+        ballpos = self._getBall(update)
+        while ballpos is None:
+            ballpos = self._getBall(True)
+        return ballpos
+
+    def _getBall(self, update = False):
         if update:
-            self.getImage()
+            self._getImage()
             if self.M is not None:
                 self.wrapped_image = VisionProcessor.warp(self.image, self.M)
         return VisionProcessor.get_ball_xy(self.image, color='brown')
 
-    def getThymio(self, update = True):
+    def _getThymio(self, update = True):
         if update:
-            self.getImage()
+            self._getImage()
             if self.M is not None:
                 self.wrapped_image = VisionProcessor.warp(self.image, self.M)
         return VisionProcessor.get_robot_pose(self.image)
@@ -199,8 +210,6 @@ class VisionProcessor():
     @staticmethod
     def divide4(contour) -> list:      
         contour = contour.reshape((-1,2))  
-        from sklearn import mixture
-        from scipy import linalg
 
         gmm = mixture.GaussianMixture(
                     n_components=4, covariance_type="full"
@@ -393,90 +402,101 @@ class VisionProcessor():
         return cv2.warpPerspective(image, M, (FieldWidth, FieldHeight), flags=flag)
 
     @staticmethod
-    def detect_box(image, color = "yellow"):
-        blurred_image = cv2.GaussianBlur(image,(21,21),cv2.BORDER_DEFAULT)
+    def detect_box(image, color = "yellow", verbose = False):
+        blur_kernel = (21, 21)
+
+        blurred_image = cv2.GaussianBlur(image, blur_kernel, cv2.BORDER_DEFAULT)
         #Color filtering in yellow
         result3= VisionProcessor.color_filter (blurred_image,color)
         # #--->
-        # plt.imshow(cv2.cvtColor(result3, cv2.COLOR_BGR2RGB))
-        # plt.show()
+            # plt.imshow(cv2.cvtColor(result3, cv2.COLOR_BGR2RGB))
+            # plt.show()
         #Contour DEtection
         gray = cv2.cvtColor(result3, cv2.COLOR_BGR2GRAY)
-        ret,thresh = cv2.threshold(gray,120,243,0)
-        contours,hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        (T, thresh) = cv2.threshold(gray, 0, 255,	cv2.THRESH_OTSU)
+        opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, np.ones((10,10)))
+        if verbose:
+            cv2.imshow("", thresh)
+            cv2.waitKey(0)
+            cv2.imshow("", opening)
+            cv2.waitKey(0)
+        contours,hierarchy = cv2.findContours(opening, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         #Taking contour with biggest area
-        cnt= max(contours, key = cv2.contourArea)
+        cnt = max(contours, key = cv2.contourArea)
         if (len(cnt)==0):
-            print("Robot not detected on field")
-            return
+            print(F"Warning: {color} box not detected on field")
+            return None
 
         #Forming a rectangle of min area arround them
         rect = cv2.minAreaRect(cnt)
         box = cv2.boxPoints(rect)
         box = np.int0(box)
 
-        
-        #Contour drawing
-        # cv2.drawContours(resized_image,[box],0,(0,0,255),2)
 
         #Calculating centroid of rectangle using moments
         M = cv2.moments(box)
         cx = int(M['m10']/M['m00'])
         cy = int(M['m01']/M['m00'])
 
+        if verbose:
+            ch = image.copy()
+            cv2.drawContours(ch, [box],-1,(255,0,0))
+            cv2.circle(ch,(cx,cy),1,(0,255,0),12)
+            cv2.imshow("", ch)
+            cv2.waitKey(0)
         # cv2.circle(resized_image,(cx,cy),1,(0,255,0),12)
 
         return cx,cy
 
 
     @staticmethod
-    def get_robot_pose (image):
+    def get_robot_pose(image, verbose = False):
 
         #Detect the yellow box
         cx_yellow,cy_yellow=VisionProcessor.detect_box(image,'yellow')
-
         #Detect the red box
         cx_red,cy_red=VisionProcessor.detect_box(image,'blue')
-
         #Save red box center as robot's xy
+        # [TODO] We should set the center of the line connecting two wheels 
+        # as the center of the robot
         robot_xy=Pos(cx_red,cy_red)
 
-        #Draw orientation Vector using yellow and red box centroids
-        cv2.arrowedLine(image,(cx_red,cy_red),(cx_yellow,cy_yellow),(255,0,0),3)
-
-        #Draw Point for Centroid of Robot
-        cv2.circle(image,(cx_red,cy_red),1,(0,255,0),12)
-
-        # cv2_imshow(image)
+        if verbose:
+            #Draw orientation Vector using yellow and red box centroids
+            cv2.arrowedLine(image,(cx_red,cy_red),(cx_yellow,cy_yellow),(255,0,0),3)
+            #Draw Point for Centroid of Robot
+            cv2.circle(image,(cx_red,cy_red),1,(0,255,0),12)
+            cv2.imshow("", image)
 
         #Calculating the angle of the robot
-
         #First calculating the horizontal and vertical displacements
         dy=(cy_yellow-cx_red)
         dx=(cx_yellow-cx_red)
-
         #Calculating the angle between the two dx dy
-        #We return the negative value because the origin of image is on the top left corner but by convention we take it at the bottom
+        # We return the negative value because 
+        # the origin of image is on the top left corner 
+        # but by convention we take it at the bottom
         robot_angle=-np.atan2(dx,dy)
         return State(robot_xy,robot_angle)
 
     @staticmethod
-    def obstacles_map(image, color = 'pink', blur_kernel = (19, 19)):
+    def obstacles_map(image, color = 'pink', blur_kernel = (19, 19), verbose = False):
         blurred_image_red = cv2.GaussianBlur(image,blur_kernel,cv2.BORDER_DEFAULT)
         image_red=VisionProcessor.color_filter(blurred_image_red,color)
-        kernel = np.ones((5,5),np.uint8)
         
         map=np.empty_like(image_red)
-
         map[image_red!=0]=0
         map[image_red==0]=255
-        erosion = cv2.erode(map,kernel,iterations = 7)
         
-        # print("Map")
-        # plt.imshow(cv2.cvtColor(erosion, cv2.COLOR_BGR2RGB))
-        # plt.show()
-        
+        if verbose:
+            cv2.imshow("",map)
+            cv2.waitKey(0)
+            kernel = np.ones((5,5),np.uint8)
+            erosion = cv2.erode(map,kernel,iterations = 7)        
+            cv2.imshow("",erosion)
+            cv2.waitKey(0)
+
         return map
 
     # --- Visualization ---
@@ -500,26 +520,32 @@ class VisionProcessor():
 
 
 if __name__ == "__main__":
-    img = cv2.imread("pink_obs.jpg")
-    try:
-        # vp = VisionProcessor()
-        # gmap = vp.getMap(update=True)
-        # thymio_state = vp.getThymio()
-        # ball_pos = vp.getBall()
-        # gate_pos = vp.getGate()
-        M = VisionProcessor.align_field(img, verbose=True)
-        wraped = VisionProcessor.warp(img, M)
-        cv2.imshow("", wraped)
-        obs = VisionProcessor.obstacles_map(wraped)
-        cv2.imshow("obs", obs)
-        cv2.waitKey(0)
-        ball = VisionProcessor.get_ball_xy(wraped)
-        cv2.imshow("ball", ball)
-        cv2.waitKey(0)
-        thymio = VisionProcessor.get_robot_pose(wraped)
-        cv2.imshow("thymio", thymio)
+    img = cv2.imread("../vision_part/pink_obs.jpg")
+    M = VisionProcessor.align_field(img, verbose=False)
+    wraped = VisionProcessor.warp(img, M)
+    print(VisionProcessor.detect_box(wraped, color="blue", verbose= True))
+    print(VisionProcessor.detect_box(wraped, color="yellow", verbose= True))
+    VisionProcessor.obstacles_map(wraped, verbose=True)
+    
+    # try:
+    #     # vp = VisionProcessor()
+    #     # gmap = vp.getMap(update=True)
+    #     # thymio_state = vp.getThymio()
+    #     # ball_pos = vp.getBall()
+    #     # gate_pos = vp.getGate()
+    #     M = VisionProcessor.align_field(img, verbose=True)
+    #     wraped = VisionProcessor.warp(img, M)
+    #     cv2.imshow("", wraped)
+    #     obs = VisionProcessor.obstacles_map(wraped)
+    #     cv2.imshow("obs", obs)
+    #     cv2.waitKey(0)
+    #     ball = VisionProcessor.get_ball_xy(wraped)
+    #     cv2.imshow("ball", ball)
+    #     cv2.waitKey(0)
+    #     thymio = VisionProcessor.get_robot_pose(wraped)
+    #     cv2.imshow("thymio", thymio)
 
-        cv2.waitKey(0)
-    finally:
-        vp.close()
+    #     cv2.waitKey(0)
+    # finally:
+    #     vp.close()
 

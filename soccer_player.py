@@ -57,9 +57,13 @@ def localizate():
     dsl, dsr = G_mc.get_displacement()
     # 3.2 With Vision
     if starter - G_camera_timer > S_camera_interval:
-        vision_thymio_state = G_vision.getThymio()
-        G_camera_timer = starter
-        G_filter.kalman_filter(dsr, dsl, vision_thymio_state)
+        vision_thymio_state = G_vision._getThymio()
+        # Vision Failed
+        if vision_thymio_state is None:
+            G_filter.kalman_filter(dsr, dsl)
+        else:
+            G_camera_timer = starter
+            G_filter.kalman_filter(dsr, dsl, vision_thymio_state)
     else:        
         G_filter.kalman_filter(dsr, dsl)
     
@@ -73,7 +77,9 @@ def main():
     G_map = G_vision.getMap()
     Ball_pos = G_vision.getBall()
     Gate_pos = G_vision.getGate()
-    vision_thymio_state = G_vision.getThymio()
+    vision_thymio_state = G_vision._getThymio()
+    while vision_thymio_state is None:
+        vision_thymio_state = G_vision._getThymio()
     G_pp = global_navigation.PathPlanner(G_map, method="A*", neighbor=8, simplify = True)
     # 1.2 Where I am
     for _ in range(S_stablize_filter_steps):
