@@ -20,6 +20,7 @@ class MotionController:
                  max_speed = 100, 
                  speed_scale = 0.000315, # (m/s) / speed_in_motor_command; 0.000315 for speed<200; 0.0003 for speed \in (200,400)
                  rotate_scale = 0.006, # TODO (rad/s) / speed_in_motor_command
+                 obstSpeedGain = 5  # /100 (actual gain: 5/100=0.05)
                  verbose = False
                  ):
         """Motion Controller
@@ -56,9 +57,16 @@ class MotionController:
         self.thymio.close()
 
     # -- Local Navigation --
-    # !!! Please Move Local Navigation Module Here !!!
     def avoid(self):
-        pass
+        try:
+            prox_horizontal = self.thymio["prox.horizontal"]
+            obst = [prox_horizontal[0], prox_horizontal[4]]
+            speed_left = self.max_speed + self.obstSpeedGain * (obst[0] / 100)
+            speed_right = self.max_speed + self.obstSpeedGain * (obst[1] / 100) 
+            self._set_motor(speed_left, speed_right)
+        #if proximity sensors not found
+        except KeyError:
+            pass  # prox.horizontal not found
 
     # -- Path Tracking --        
     def path_tracking(self, waypoint, Thymio_state, theta_track = False):
