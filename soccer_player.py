@@ -37,7 +37,7 @@ G_mc = motion_control.MotionController(
     Thymio.serial(port=THYMIO_PORT, refreshing_rate=THYMIO_REFRESH_RATE), 
     S_motion_interval, verbose=G_verbose)
 G_mc.timer = time.time()
-G_vision = vision.Processor()
+G_vision = vision.VisionProcessor()
 pre_state = np.array([1, 1, 0]).reshape(-1, 1) # initial state
 pre_cov = np.ones([3, 3]) * 0.03 # initial covariance
 G_filter = filtering.KF(pre_state, pre_cov, qx=0.1, qy=0.1, qtheta=0.3, rl=0.1, rr=0.1, b=0.093)
@@ -77,7 +77,7 @@ def main():
     G_pp = global_navigation.PathPlanner(G_map, method="A*", neighbor=8, simplify = True)
     # 1.2 Where I am
     for _ in range(S_stablize_filter_steps):
-        Thymio_state = G_filter.getState(vision_thymio_state)
+        Thymio_state = G_filter.kalman_filter(0, 0, vision_thymio_state)
 
     # 2. main loop of 2 tasks
     for goal in ["ball", "gate"]:
