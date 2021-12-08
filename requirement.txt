@@ -1,0 +1,8 @@
+numpy
+scipy
+imutils
+cv2
+
+
+### for visualization
+matplotlib
