@@ -79,11 +79,12 @@ class GridMap:
     # And it can be fluctuation of motion following continuous waypoints of high resolution.
     # which do you prefer?
     """Vision --set--> GridMap --> GN"""
-    def __init__(self, h, w, s):
+    def __init__(self, h, w, s, obs_map = None):
         self.height = h # x
         self.width = w  # y
         self.scale = s # in meters
-        self.obs_map = [[False for _ in range(self.width)] for _ in range(self.height)]
+        if obs_map is None:
+            self.obs_map = [[False for _ in range(self.width)] for _ in range(self.height)]
 
     def set_goal(self, p):
         self.goal = p
