@@ -14,6 +14,8 @@ class VisionProcessor():
     def __init__(self, camera_index = CAMERA_INDEX) -> None:
         # add some settings here
         self.cap = cv2.VideoCapture(camera_index)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 72)
         self.image = None
         self.wrapped_image = None
         self.M = None
@@ -233,12 +235,20 @@ class VisionProcessor():
         return (int)(x), (int)(y)
         
     @staticmethod
-    def align_field(image, 
+    def corners_gmm(image, 
                     color = 'green', # color of the field
                     gray_threshold = [28,243],
                     verbose = False):
-        '''Used to align the view of the field into a 2D plane'''
+        """Return corners using GMM
 
+        Args:
+            
+            color (str, optional): [description]. Defaults to 'green'.
+            verbose (bool, optional): [description]. Defaults to False.
+
+        Returns:
+            [np.arrays]: corners
+        """
         # -- 1. Extract the quadrilateral field ---
         # Performing Colour Filtering to Distinguish the Field
         result= VisionProcessor.color_filter(image, color)
@@ -264,11 +274,7 @@ class VisionProcessor():
         
         # Taking its Convex hull to get an aproximate rectangle
         c = cv2.convexHull(c)
-        # if verbose:
-        #     ch = image.copy()
-        #     cv2.drawContours(ch, [c], 0, (0,255,0), cv2.FILLED)
-        #     cv2.imshow('convexHull',ch)
-
+        
         # Using GMM to divide 4 segment of the quadrilateral    
         
         ch = np.zeros_like(image)
@@ -305,70 +311,79 @@ class VisionProcessor():
         corners = np.array(corners)
         if verbose:
             cv2.imshow('',ch)
+        means = np.mean(corners, 0)
+        for c in corners:
+            if c[0] < means[0]:
+                if c[1] < means[1]:
+                    lt = c
+                else:
+                    ld = c
+            elif c[1] < means[1]:
+                rt = c
+            else:
+                rd = c
+        scorners = [lt, ld, rd, rt]
+        print(scorners)
+        return scorners
+    
+    @staticmethod
+    def corners_ar(cam_id, verbose=False):
+        video = cv2.VideoCapture(cam_id)
+        video.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        video.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
-        """
-            perimeter = cv2.arcLength(c, True)
-            # Using an approximate polygon to get the corners of the rectangle
-            approx= cv2.approxPolyDP(c, 0.05 * perimeter, True) 
-            #[ Question: How can you be sure that `approx` will be a rectangle but n-polydon?]
+        # time.sleep(2.0)
             
-            corners=np.zeros((4,2),dtype=np.int16)
+        arucoDict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_5X5_50)
+        arucoParams = cv2.aruco.DetectorParameters_create()
+
+        center = {}
+        while True and (len(center.keys())!=4):
+            ret, image = video.read()
+            if ret is False:
+                break
+
+
             
-            if (len(approx)==0):
-                print("Poor color Filtering of field")
-                return None
+            corners, ids, rejected = cv2.aruco.detectMarkers(image, arucoDict, parameters=arucoParams)
+            
+            
+            if len(corners) > 0:
+                ids = ids.flatten()
+                for (markerCorner, markerID) in zip(corners, ids):
+                    corners = markerCorner.reshape((4, 2))
+                    (topLeft, topRight, bottomRight, bottomLeft) = corners
 
-            #if the contours detected don't form a rectangle then we approximate them using a minimum rectangle area
-                # if len(approx)>4:
-                #         hull =[]
-                #         for c in contours:
-                #             if cv2.contourArea(c)>10:
-                #                 hull.append(cv2.convexHull(c,False))
-                #         rect = cv2.minAreaRect(np.concatenate(hull,axis=0))
-                #         box = cv2.boxPoints(rect)
-                #         box = np.int0(box)
-                #         cv2.drawContours(result,[box],0,(0,0,255),2)
-                #         c=box
-                #         approx= cv2.approxPolyDP(c, 0.05 * perimeter, True)
-                #     return
-
-            # Drawing a circle at every corner of the field and 
-            # converting the list of corner points to array
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            for i in range(4):
-                point = approx[i]
-                x, y = point[0]
-                corners[i,0]=x
-                corners[i,1]=y    
-                if verbose:
-                    cv2.circle(result, (x, y), 3, (0, 255, 0), -1)
-                    cv2.putText(result,str(i), (x,y), font, 1, (0, 0, 255), 2, cv2.LINE_AA)
-                
+                    # Convert to integer pairs
+                    topRight = (int(topRight[0]), int(topRight[1]))
+                    bottomRight = (int(bottomRight[0]), int(bottomRight[1]))
+                    bottomLeft = (int(bottomLeft[0]), int(bottomLeft[1]))
+                    topLeft = (int(topLeft[0]), int(topLeft[1]))
+                    cv2.line(image, topLeft, topRight, (0, 255, 0), 2)
+                    cv2.line(image, topRight, bottomRight, (0, 255, 0), 2)
+                    cv2.line(image, bottomRight, bottomLeft, (0, 255, 0), 2)
+                    cv2.line(image, bottomLeft, topLeft, (0, 255, 0), 2)
+                    
+                    cX = int((topLeft[0] + bottomRight[0]) / 2.0)
+                    cY = int((topLeft[1] + bottomRight[1]) / 2.0)
+                    center[markerID] = [cX, cY]
+                    cv2.circle(image, (cX, cY), 4, (0, 0, 255), -1)
             if verbose:
-                cv2.imshow('',result)
-        """
-        
-        # -- 2. Projection Matrix --
-        """
-            # Calculating the pairwise distance between every corner point
-            distance = scipy.spatial.distance.pdist(corners,'euclidean')
-            # Getting rid of the diagonals as they are the two longest distances
-            edges=np.sort(corners)[:4]
-            #     edges=np.sort(dist)[:4]
-            #Since the edges array is sorted the two smallest values are the width and the others are length
-            width = edges[:2]
-            length = edges[2:]
-            
-            #     print(width)
-            #     return 0
-            #Getting Max length and width
-            # if image.shape[0]>image.shape[1]:
-            #   maxWidth=max(np.max((width).astype(int)),np.max((length).astype(int)))
-            #   maxLength=min(np.max((width).astype(int)),np.max((length).astype(int)))
-            # else:
-            maxWidth=np.max((width).astype(int))
-            maxLength=np.max((length).astype(int))
-        """
+                cv2.imshow("Image", image)
+                cv2.waitKey()
+
+
+        cv2.destroyAllWindows()
+        video.release()
+        ret_corners = []
+        for i in range(1, 5):
+            ret_corners.append(center[i])
+        return np.array(ret_corners)
+
+
+    @staticmethod
+    def align_field(corners):
+        '''Used to align the view of the field into a 2D plane'''
         # sort the corners
         means = np.mean(corners, 0)
         for c in corners:
@@ -520,9 +535,13 @@ class VisionProcessor():
 
 
 if __name__ == "__main__":
-    img = cv2.imread("../vision_part/pink_obs.jpg")
-    M = VisionProcessor.align_field(img, verbose=False)
+    img = cv2.imread("test.jpg")
+    corners = VisionProcessor.corners_ar(1)
+    # corners = VisionProcessor.corners_gmm(img)
+    M = VisionProcessor.align_field(corners)
     wraped = VisionProcessor.warp(img, M)
+    cv2.imshow('wrap', wraped)
+    cv2.waitKey()
     print(VisionProcessor.detect_box(wraped, color="blue", verbose= True))
     print(VisionProcessor.detect_box(wraped, color="yellow", verbose= True))
     VisionProcessor.obstacles_map(wraped, verbose=True)
