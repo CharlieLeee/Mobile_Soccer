@@ -6,8 +6,6 @@ Description:
 Motion Control with Thymio Interface
 '''
 from loguru import logger
-from numpy.core.numeric import load
-import filtering
 from Thymio import Thymio
 import time
 import os
