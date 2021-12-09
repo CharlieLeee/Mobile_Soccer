@@ -1,9 +1,9 @@
 '''
 File: global_navigation.py
-Author: LI Jiangfan 
+Author: LI Jiangfan
 -----
 Description:
-Global Navigation Module: 
+Global Navigation Module:
 * Return a feasible path from the start to the goal.
     * A*(optimal)
     * RRT(not optimal, but faster)
@@ -19,12 +19,12 @@ import random
 import matplotlib.pyplot as plt
 
 class PathPlanner:
-    def __init__(self, map = None, method = "A*", neighbor = 4, path_simplification = False, plot = False): 
+    def __init__(self, map = None, method = "A*", neighbor = 4, path_simplification = False, plot = False):
         """tell me the map, I will give u a path
 
-        u can use 'set_map' to tell me the map, 
+        u can use 'set_map' to tell me the map,
         and modify it with 'set_goal' and 'set_start';
-        or specify the map(without enlarging the obstacles) 
+        or specify the map(without enlarging the obstacles)
         when calling 'plan'
         """
         self.map = map
@@ -38,8 +38,8 @@ class PathPlanner:
         self.plot = plot
         if self.plot:
             self._plot()
-        
-    
+
+
     def approach(self, pBall):
         """
         calculate a position for Thymio to approach the ball
@@ -47,26 +47,31 @@ class PathPlanner:
         """
         num = (int)((Thymio_Size + Ball_Size) / self.map.scale)
         q = PriorityQueue()
-        for i in range(max(0, pBall.x - num), 
+        for i in range(max(0, pBall.x - num),
             min(self.map.height, pBall.x + num)):
-            for j in range(max(0, pBall.y), 
+            for j in range(max(0, pBall.y),
                 min(self.map.width, pBall.y + num)):
-                p = Pos(i,j)
-                if self.map.check(p):
-                    q.put((abs(pBall.dis(p) - (Thymio_Size + Ball_Size)), p))
+                if abs((i-pBall.x) ** 2 + (j-pBall.y) ** 2 - (int)(Ball_Size/self.map.scale)) < 1:
+                    p = Pos(i,j)
+                    if self.map.check(p):
+                        q.put((abs(pBall.dis(p) - (Thymio_Size + Ball_Size)), p))
+        if q.empty():
+            raise Exception("can not find good position to approach")
         dis, p = q.get()
-        return p
-    
+        ori = math.atan2(pBall.y - p.y, pBall.x - p.x)
+        return State(p, ori)
+
     def set_map(self, map):
         self.map = map
-    
-    def set_goal(self, p):
-        self.map.goal = p
 
-    def set_start(self, p):
-        self.map.start = p
+    def set_goal(self, s):
+        self.map.goal = s.pos
+        self.goalori = s.ori
 
-    def assign_ori(self, path, endori):
+    def set_start(self, s):
+        self.map.start = s.pos
+
+    def assign_ori(self, path):
         """
         assign orientation for waypoints
         return list of States
@@ -76,9 +81,9 @@ class PathPlanner:
         ]
         q = PriorityQueue()
         goal = path[-1]
-        tanv = math.tan(endori)
+        tanv = math.tan(self.goalori)
         if abs(tanv) < 1:
-            dir = 1 if abs(endori) > math.pi/2 else -1
+            dir = 1 if abs(self.goalori) > math.pi/2 else -1
             for i in range(1, self.map.height):
                 x = goal.x + i*dir
                 if x >= 0 and x < self.map.height:
@@ -97,7 +102,7 @@ class PathPlanner:
                 else:
                     break
         else:
-            dir = 1 if endori > math.pi else -1
+            dir = 1 if self.goalori > math.pi else -1
             for j in range(self.map.width):
                 y = goal.y + j*dir
                 if y >= 0 and y < self.map.width:
@@ -117,16 +122,16 @@ class PathPlanner:
                     break
 
         c, p = q.get()
-        sPath.append(State(p.multiply(self.map.scale), endori))
+        sPath.append(State(p.multiply(self.map.scale), self.goalori))
         sPath[-2].ori = path[-2].delta_theta(p)
-        sPath.append(State(goal.multiply(self.map.scale), endori))
+        sPath.append(State(goal.multiply(self.map.scale), self.goalori))
         # for s in sPath:
         #     print(s)
         return sPath
 
     def enlarge_obs(self):
         """
-        enlarge the obstacles 
+        enlarge the obstacles
         considering the size of Thymio
         """
         assert self.map is not None
@@ -146,12 +151,12 @@ class PathPlanner:
 
     def plan(self, map = None):
         """return a path from the start to the goal
-        
+
         @param map: GridMap with all the info(start, goal, obstacles)
-        @return waypoints: Queue[Pos] 
+        @return waypoints: Queue[Pos]
             Note: If no feasible path found, the list will be empty
         """
-        if map is None:          
+        if map is None:
             if self.map is None:
                 raise Exception("Error: Please assign a Map first.")
         else:
@@ -168,18 +173,21 @@ class PathPlanner:
             print("Warning! unknown method of path planning, using default instead.")
             self.method = "A*"
             ret = self._a_star()
-        
+
+        if self.simplify:
+            ret = self.collect_wps(ret)
+            ret = self.path_simplification(ret)
         if self.plot:
             self._plot(ret)
         return ret
-        
+
 
     def _a_star(self):
         qps = PriorityQueue()
         gcost = [[math.inf for _ in range(self.map.width)] for _ in range(self.map.height)]
         gcost[self.map.start.x][self.map.start.y] = 0
         parent = [[None for _ in range(self.map.width)] for _ in range(self.map.height)]
-        parent[self.map.start.x][self.map.start.y] = self.map.start        
+        parent[self.map.start.x][self.map.start.y] = self.map.start
         def heuristic(p):
             return gcost[p.x][p.y] + p.dis(self.map.goal)
 
@@ -202,14 +210,14 @@ class PathPlanner:
                         gcost[pn.x][pn.y] = newcost
                         parent[pn.x][pn.y] = p
                         qps.put((heuristic(pn), pn))
-                    
+
         if len(waypoints) == 0:
             return []
         waypoints.reverse()
-        waypoints = self.collect_wps(waypoints)
-        if self.simplify:
-            waypoints = self.path_simplification(waypoints)
-        return waypoints
+        # waypoints = self.collect_wps(waypoints)
+        # if self.simplify:
+        #     waypoints = self.path_simplification(waypoints)
+        return waypoints[1:]
 
     def _rrt(self, p_bias = 0.1):
         """
@@ -219,10 +227,10 @@ class PathPlanner:
         qps = PriorityQueue()
         nodes = [self.map.start]
         gcost = [0]
-        parent = [None]   
+        parent = [None]
 
         waypoints = []
-        while True:      # for _ in range(max_step)      
+        while True:      # for _ in range(max_step)
             # 1. sample
             if random.random() < p_bias:
                 q = self.map.goal
@@ -233,7 +241,7 @@ class PathPlanner:
             mdis = nodes[ni].dis(q)
             onTree = False
             for n in range(len(nodes)):
-                if nodes[ni] == q:
+                if nodes[n] == q:
                     onTree = True
                     break
                 tdis = nodes[n].dis(q)
@@ -246,7 +254,7 @@ class PathPlanner:
             nn = Pos.portion(q, nodes[ni], min(1, step_len/mdis))
             if self.__check(nn) and not self._obsinbetween(nodes[ni], nn):
                 # 4.1 check goal condition
-                if nn.dis(self.map.goal) < 1:    
+                if nn.dis(self.map.goal) < 1:
                     waypoints.append(nn)
                     w = ni
                     while w != None:
@@ -259,11 +267,11 @@ class PathPlanner:
 
         if len(waypoints) == 0:
             return []
-        if self.simplify:
-            waypoints = self.path_simplification(waypoints)
-        # Note: waypoints need to be reversed
-        return waypoints
-        
+        # if self.simplify:
+        #     waypoints = self.path_simplification(waypoints)
+        waypoints.reverse()
+        return waypoints[1:]
+
 
     def collect_wps(self, waypoints, eps = 1e-3):
         """merge waypoints in the same direction
@@ -311,7 +319,7 @@ class PathPlanner:
 
     def path_simplification(self, waypoints):
         """eliminate waypoints into several nodes
-        
+
         Provide less lines for motion
         """
         # grand-parent-child
@@ -349,14 +357,14 @@ class PathPlanner:
             for i in range(8):
                 if ava[i]:
                     ret.append((Pos(p.x+bias[i][0], p.y+bias[i][1]), 1 if i<4 else 1.5))
-            return ret            
+            return ret
         else:
             print("Warning! unsupported neighbor number, using default instead.")
             self.neighbor = 4
             return self.__get_neighbors(p)
 
     def __check(self, p):
-        return not self.obs[p.x][p.y]    
+        return not self.obs[p.x][p.y]
 
     def __valid_sample(self):
         while True:
@@ -369,9 +377,9 @@ class PathPlanner:
     """Visualization"""
     def _plot(self, path = None):
         # plot the map
-        self.map_image = np.zeros(shape=(self.map.height, self.map.width))
+        image = np.zeros(shape=(self.map.height, self.map.width))
         def plot_point(p, value):
-            self.map_image[p.x, p.y] = value
+            image[p.x, p.y] = value
 
         plot_point(self.map.start, 80)
         plot_point(self.map.goal, 120)
@@ -392,7 +400,7 @@ class PathPlanner:
                     plot_point(p,250)
                     # print(p)
 
-        plt.imshow(self.map_image)
+        plt.imshow(image)
         plt.show()
 
 if __name__ == "__main__":
@@ -408,10 +416,11 @@ if __name__ == "__main__":
     rmap.set_obs(obslist)
 
     # planner
-    ppr = PathPlanner(rmap,path_simplification=True, plot=True,neighbor=8, method="A*")
+    ppr = PathPlanner(rmap,path_simplification=True, plot=True,neighbor=8, method="RRT")
+    print(ppr.approach(Pos(h-1, w-1)))
     path = ppr.plan()
-    spath = ppr.assign_ori(path, 0.0)
-    ppr._plot([Pos((int)(s.pos.x/0.01), (int)(s.pos.y/0.01)) for s in spath])
+    # spath = ppr.assign_ori(path, 0.0)
+    # ppr._plot([Pos((int)(s.pos.x/0.01), (int)(s.pos.y/0.01)) for s in spath])
     #for p in path:
     #    print(p)
-    
+
