@@ -20,7 +20,7 @@ class MotionController:
                  max_speed = 100, 
                  speed_scale = 0.000315, # (m/s) / speed_in_motor_command; 0.000315 for speed<200; 0.0003 for speed \in (200,400)
                  rotate_scale = 0.006, # TODO (rad/s) / speed_in_motor_command
-                 obstSpeedGain = 5  # /100 (actual gain: 5/100=0.05)
+                 obstSpeedGain = 5,  # /100 (actual gain: 5/100=0.05)
                  verbose = False
                  ):
         """Motion Controller
