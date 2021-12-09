@@ -14,8 +14,8 @@ class VisionProcessor():
     def __init__(self, camera_index = CAMERA_INDEX) -> None:
         # add some settings here
         self.cap = cv2.VideoCapture(camera_index)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 72)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
         self.image = None
         self.wrapped_image = None
         self.M = None
@@ -535,7 +535,10 @@ class VisionProcessor():
 
 
 if __name__ == "__main__":
+    
     img = cv2.imread("test.jpg")
+    img = cv2.resize(img, (1280, 720))
+    print(img.shape)
     corners = VisionProcessor.corners_ar(1)
     # corners = VisionProcessor.corners_gmm(img)
     M = VisionProcessor.align_field(corners)
