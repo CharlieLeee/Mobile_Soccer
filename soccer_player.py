@@ -21,7 +21,7 @@ import filtering
 import global_navigation
 
 # -- Global Settings --
-THYMIO_PORT = "COM6"
+THYMIO_PORT = "COM5"
 THYMIO_REFRESH_RATE = 1.0
 G_verbose = True
 S_camera_interval = 1000 #ms
@@ -38,6 +38,7 @@ G_mc = motion_control.MotionController(
     S_motion_interval, verbose=G_verbose)
 G_mc.timer = time.time()
 G_vision = vision.VisionProcessor()
+G_vision.open()
 pre_state = np.array([1, 1, 0]).reshape(-1, 1) # initial state
 pre_cov = np.ones([3, 3]) * 0.03 # initial covariance
 G_filter = filtering.KF(pre_state, pre_cov, qx=0.1, qy=0.1, qtheta=0.3, rl=0.1, rr=0.1, b=0.093)

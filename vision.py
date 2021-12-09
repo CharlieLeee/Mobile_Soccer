@@ -20,10 +20,10 @@ class VisionProcessor():
         self.wrapped_image = None
         self.M = None
 
-    def open(self, width = 1920, height = 1080):
+    def open(self, width = 1280, height = 720):
+        self.cap = cv2.VideoCapture(self.camera_index)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-        self.cap = cv2.VideoCapture(self.camera_index)
 
     def close(self):
         self.cap.release()
@@ -32,7 +32,9 @@ class VisionProcessor():
     def _getImage(self):
         """Get image from camera"""
         if self.cap.isOpened():
-            self.image = self.cap.read()
+            ret, self.image = self.cap.read()
+            if not ret:
+                raise Exception("Camera read failed")
         else:
             raise Exception("Camera Not Found!")
         return self.image
@@ -269,7 +271,7 @@ class VisionProcessor():
         # morphology operation against noise
         closing = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, np.ones((10, 10)))
         # extract contours
-        _,contours,hierarchy = cv2.findContours(closing,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours,hierarchy = cv2.findContours(closing,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         if verbose:
             ch = image.copy()
@@ -297,7 +299,7 @@ class VisionProcessor():
             
         # gray = cv2.cvtColor(ch,cv2.COLOR_BGR2GRAY)
         # edges = cv2.Canny(gray,50,150,apertureSize = 3)
-        _,convexcontour,_ = cv2.findContours(hull_img,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        convexcontour,_ = cv2.findContours(hull_img,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         #print(np.array(convexcontour[0])[:,0])
         lines = VisionProcessor.divide4(convexcontour[0])
         if verbose:
@@ -453,7 +455,7 @@ class VisionProcessor():
             cv2.waitKey(0)
             cv2.imshow("", opening)
             cv2.waitKey(0)
-        _,contours,hierarchy = cv2.findContours(opening, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours,hierarchy = cv2.findContours(opening, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         #Taking contour with biggest area
         cnt = max(contours, key = cv2.contourArea)
@@ -487,9 +489,9 @@ class VisionProcessor():
     def get_robot_pose(image, verbose = False):
 
         #Detect the yellow box
-        cx_yellow,cy_yellow=VisionProcessor.detect_box(image,'yellow')
+        cx_yellow,cy_yellow=VisionProcessor.detect_box(image,'yellow',verbose)
         #Detect the red box
-        cx_red,cy_red=VisionProcessor.detect_box(image,'blue')
+        cx_red,cy_red=VisionProcessor.detect_box(image,'blue', verbose)
         #Save red box center as robot's xy
         # [TODO] We should set the center of the line connecting two wheels 
         # as the center of the robot
@@ -510,7 +512,7 @@ class VisionProcessor():
         # We return the negative value because 
         # the origin of image is on the top left corner 
         # but by convention we take it at the bottom
-        robot_angle=-np.atan2(dx,dy)
+        robot_angle=-math.atan2(dx,dy)
         return State(robot_xy,robot_angle)
 
     @staticmethod
@@ -554,22 +556,32 @@ class VisionProcessor():
 
 if __name__ == "__main__":
     
-    img = cv2.imread("test.jpg")
-    img = cv2.resize(img, (1280, 720))
-    print(img.shape)
-    corners = VisionProcessor.corners_ar(1)
-    # corners = VisionProcessor.corners_gmm(img)
-    M = VisionProcessor.align_field(corners)
-    wraped = VisionProcessor.warp(img, M)
-    cv2.imshow('wrap', wraped)
-    cv2.waitKey()
-    print(VisionProcessor.detect_box(wraped, color="blue", verbose= True))
-    print(VisionProcessor.detect_box(wraped, color="yellow", verbose= True))
-    # img = cv2.imread("img/example.jpg")
-    # M = VisionProcessor.align_field(img, verbose=True)
+    # img = cv2.imread("test.jpg")
+    # img = cv2.resize(img, (1280, 720))
+    # print(img.shape)
+    # corners = VisionProcessor.corners_ar(1)
+    # # corners = VisionProcessor.corners_gmm(img)
+    # M = VisionProcessor.align_field(corners)
     # wraped = VisionProcessor.warp(img, M)
-    # print(VisionProcessor.detect_box(wraped, color="blue", verbose= False))
-    # print(VisionProcessor.detect_box(wraped, color="yellow", verbose= False))
+    # cv2.imshow('wrap', wraped)
+    # cv2.waitKey()
+    # print(VisionProcessor.detect_box(wraped, color="blue", verbose= True))
+    # print(VisionProcessor.detect_box(wraped, color="yellow", verbose= True))
+    vp = VisionProcessor()
+    #vp.open()
+    print("camera opened.")
+    img = cv2.imread("img/example.jpg")
+    # corners = VisionProcessor.corners_ar(1)
+    # corners = np.array([[188,  75], [102, 683],[1159,  682],[1073,   73]])
+    corners = VisionProcessor.corners_gmm(img)
+    M = VisionProcessor.align_field(corners)
+    #img = vp._getImage()
+    #cv2.imwrite("test.jpg", img)
+    wraped = VisionProcessor.warp(img, M)
+    # print(VisionProcessor.detect_box(wraped, color="blue", verbose= True))
+    # print(VisionProcessor.detect_box(wraped, color="yellow", verbose= True))
+    print(VisionProcessor.get_robot_pose(wraped, verbose=True))
+    cv2.waitKey(0)
     # VisionProcessor.obstacles_map(wraped, verbose=True)
     
     # try:
