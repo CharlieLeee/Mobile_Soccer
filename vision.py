@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from numpy.lib.type_check import imag
 from sklearn import mixture
 from scipy import linalg
 
@@ -13,12 +14,16 @@ CAMERA_INDEX = 1
 class VisionProcessor():
     def __init__(self, camera_index = CAMERA_INDEX) -> None:
         # add some settings here
-        self.cap = cv2.VideoCapture(camera_index)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+        self.cap = None
+        self.camera_index = camera_index
         self.image = None
         self.wrapped_image = None
         self.M = None
+
+    def open(self, width = 1920, height = 1080):
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        self.cap = cv2.VideoCapture(self.camera_index)
 
     def close(self):
         self.cap.release()
@@ -237,7 +242,7 @@ class VisionProcessor():
     @staticmethod
     def corners_gmm(image, 
                     color = 'green', # color of the field
-                    gray_threshold = [28,243],
+                    #gray_threshold = [28,243],
                     verbose = False):
         """Return corners using GMM
 
@@ -258,11 +263,13 @@ class VisionProcessor():
         # Finding Contours to detect the area of the field
         # convert to a gray image than a binary image.
         gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
-        ret,thresh = cv2.threshold(gray,gray_threshold[0],gray_threshold[1],0)
+        
+        (T, thresh) = cv2.threshold(gray, 0, 255,	cv2.THRESH_OTSU)
+        #ret,thresh = cv2.threshold(gray,gray_threshold[0],gray_threshold[1],0)
         # morphology operation against noise
         closing = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, np.ones((10, 10)))
         # extract contours
-        contours,hierarchy = cv2.findContours(closing,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        _,contours,hierarchy = cv2.findContours(closing,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         if verbose:
             ch = image.copy()
@@ -273,15 +280,25 @@ class VisionProcessor():
         c = max(contours, key = cv2.contourArea)
         
         # Taking its Convex hull to get an aproximate rectangle
-        c = cv2.convexHull(c)
-        
-        # Using GMM to divide 4 segment of the quadrilateral    
-        
-        ch = np.zeros_like(image)
-        cv2.drawContours(ch, [c], 0, (0,255,0), cv2.FILLED)
-        gray = cv2.cvtColor(ch,cv2.COLOR_BGR2GRAY)
-        edges = cv2.Canny(gray,50,150,apertureSize = 3)
-        convexcontour,_ = cv2.findContours(edges,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        hull = cv2.convexHull(c)
+        # if verbose:
+        #     ch = image.copy()
+        #     cv2.drawContours(ch, [c], 0, (0,255,0), cv2.FILLED)
+        #     cv2.imshow('convexHull',ch)
+
+        # Using GMM to divide 4 segment of the quadrilateral   
+        hull_img = np.zeros_like(image)     
+        length = len(hull)
+        for i in range(len(hull)):
+            cv2.line(hull_img, tuple(hull[i][0]), tuple(hull[(i+1)%length][0]), (255,0,0), 2)
+        hull_img = cv2.cvtColor(hull_img, cv2.COLOR_RGB2GRAY)
+        if verbose:
+            cv2.imshow("", hull_img)
+            
+        # gray = cv2.cvtColor(ch,cv2.COLOR_BGR2GRAY)
+        # edges = cv2.Canny(gray,50,150,apertureSize = 3)
+        _,convexcontour,_ = cv2.findContours(hull_img,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        #print(np.array(convexcontour[0])[:,0])
         lines = VisionProcessor.divide4(convexcontour[0])
         if verbose:
             ch = image.copy()
@@ -289,6 +306,7 @@ class VisionProcessor():
             for line in lines:
                 cv2.circle(ch, ((int)(line[0]), (int)(line[1])), 3, (0, 0, 255), -1)
             cv2.imshow('convexHull',ch)
+            cv2.waitKey(10000)
 
         ll = lines[np.argmax([abs(l[-1]) for l in lines])]
         lines.remove(ll)
@@ -304,7 +322,7 @@ class VisionProcessor():
                 x, y = VisionProcessor.intersection(h[0], h[1], -h[2], v[0], v[1], -v[2])
                 corners.append([x, y])
                 if verbose:
-                    print(x, y)
+                    print("corner",x, y)
                     cv2.circle(ch, (x, y), 3, (0, 255, 0), -1)
                     cv2.putText(ch,str(i), (x,y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
                     i += 1
@@ -435,7 +453,7 @@ class VisionProcessor():
             cv2.waitKey(0)
             cv2.imshow("", opening)
             cv2.waitKey(0)
-        contours,hierarchy = cv2.findContours(opening, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        _,contours,hierarchy = cv2.findContours(opening, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         #Taking contour with biggest area
         cnt = max(contours, key = cv2.contourArea)
@@ -547,7 +565,12 @@ if __name__ == "__main__":
     cv2.waitKey()
     print(VisionProcessor.detect_box(wraped, color="blue", verbose= True))
     print(VisionProcessor.detect_box(wraped, color="yellow", verbose= True))
-    VisionProcessor.obstacles_map(wraped, verbose=True)
+    # img = cv2.imread("img/example.jpg")
+    # M = VisionProcessor.align_field(img, verbose=True)
+    # wraped = VisionProcessor.warp(img, M)
+    # print(VisionProcessor.detect_box(wraped, color="blue", verbose= False))
+    # print(VisionProcessor.detect_box(wraped, color="yellow", verbose= False))
+    # VisionProcessor.obstacles_map(wraped, verbose=True)
     
     # try:
     #     # vp = VisionProcessor()
