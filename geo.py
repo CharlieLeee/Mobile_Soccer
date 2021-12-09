@@ -86,11 +86,11 @@ class GridMap:
         if obs_map is None:
             self.obs_map = [[False for _ in range(self.width)] for _ in range(self.height)]
 
-    def set_goal(self, p):
-        self.goal = p
+    def set_goal(self, s):
+        self.goal = s
 
-    def set_start(self, p):
-        self.start = p
+    def set_start(self, s):
+        self.start = s
 
     def set_obs(self, obslist):
         self.obs = obslist
