@@ -1,10 +1,11 @@
 import cv2
 
-cam = cv2.VideoCapture(2)
-
+cam = cv2.VideoCapture(1)
+cam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 cv2.namedWindow("test")
 
-img_counter = 0
+img_counter = 1
 
 import os
 import datetime

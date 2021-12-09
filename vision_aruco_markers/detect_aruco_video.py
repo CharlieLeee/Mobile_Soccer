@@ -19,7 +19,10 @@ ap.add_argument("-t", "--type", type=str, default="DICT_ARUCO_ORIGINAL", help="T
 args = vars(ap.parse_args())
 
 if args["camera"].lower() == "true":
-	video = cv2.VideoCapture(0)
+	video = cv2.VideoCapture(1)
+	video.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+	video.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
 	time.sleep(2.0)
 	
 else:
@@ -45,7 +48,7 @@ while True:
 
 	h, w, _ = frame.shape
 
-	width=1000
+	width=1200
 	height = int(width*(h/w))
 	frame = cv2.resize(frame, (width, height), interpolation=cv2.INTER_CUBIC)
 	corners, ids, rejected = cv2.aruco.detectMarkers(frame, arucoDict, parameters=arucoParams)
