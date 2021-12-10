@@ -41,5 +41,32 @@ G_mc = motion_control.MotionController(
     max_speed=100,
     verbose=G_verbose)
 G_track_timer = time.time()
-logger.info(G_track_timer)
-logger.info(G_mc.get_displacement())
+
+#G_camera_timer = time.time()
+G_track_timer = time.time()
+G_mc.get_displacement()
+
+def localizate():
+    """Track Where Thymio is"""
+    global G_camera_timer
+    starter = G_filter.timer
+    # 3. Localization 
+    # 3.1 odometer
+    dsl, dsr = G_mc.get_displacement()
+    # 3.2 With Vision
+        # if starter - G_camera_timer > S_camera_interval:
+        #     vision_thymio_state = G_vision._getThymio()
+        #     # Vision Failed
+        #     if vision_thymio_state is None:
+        #         G_filter.kalman_filter(dsr, dsl)
+        #     else:
+        #         G_camera_timer = starter
+        #         G_filter.kalman_filter(dsr, dsl, vision_thymio_state)
+        # else:        
+        #     G_filter.kalman_filter(dsr, dsl)
+    G_filter.kalman_filter(dsr, dsl)
+    G_filter.plot_gaussian()
+    thymio_state = G_filter.get_state()
+    return thymio_state
+
+print(localizate())

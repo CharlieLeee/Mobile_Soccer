@@ -9,7 +9,7 @@ from geo import *
 FieldWidth = 1050
 FieldHeight = 680
 FieldScale = 0.0075
-CAMERA_INDEX = 1
+CAMERA_INDEX = 0
 
 class VisionProcessor():
     def __init__(self, camera_index = CAMERA_INDEX) -> None:
@@ -346,20 +346,16 @@ class VisionProcessor():
         print(scorners)
         return scorners
     
-    @staticmethod
-    def corners_ar(cam_id, verbose=False):
+    def corners_ar(self, verbose=False):
         """Get centers of corners based on aruco markers
 
         Args:
-            cam_id (int): The ID of the webcam you use
             verbose (bool, optional): Show images that are used to find centers. Defaults to False.
 
         Returns:
             centers of corners
         """
-        video = cv2.VideoCapture(cam_id)
-        video.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        video.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        self.open()
 
         # time.sleep(2.0)
             
@@ -368,12 +364,8 @@ class VisionProcessor():
 
         center = {}
         while True and (len(center.keys())!=4):
-            ret, image = video.read()
-            if ret is False:
-                break
+            image = self._getImage()
 
-
-            
             corners, ids, rejected = cv2.aruco.detectMarkers(image, arucoDict, parameters=arucoParams)
             
             
@@ -403,7 +395,6 @@ class VisionProcessor():
 
 
         cv2.destroyAllWindows()
-        video.release()
         ret_corners = []
         for i in range(1, 5):
             ret_corners.append(center[i])
@@ -446,7 +437,7 @@ class VisionProcessor():
                 center[markerID] = [cX, cY]
                 cv2.circle(image, (cX, cY), 4, (0, 0, 255), -1)
         ret_corners = []
-        for i in range(1, 5):
+        for i in center.keys():
             ret_corners.append(center[i])
         return np.array(ret_corners), image
 
@@ -608,28 +599,35 @@ if __name__ == "__main__":
     # img = cv2.imread("test.jpg")
     # img = cv2.resize(img, (1280, 720))
     # print(img.shape)
-    # corners = VisionProcessor.corners_ar(1)
+    vp = VisionProcessor()
+    corners = vp.corners_ar(0)
+    print(corners)
     # # corners = VisionProcessor.corners_gmm(img)
-    # M = VisionProcessor.align_field(corners)
-    # wraped = VisionProcessor.warp(img, M)
-    # cv2.imshow('wrap', wraped)
-    # cv2.waitKey()
+    M = VisionProcessor.align_field(corners)
+    while True:
+        img = vp._getImage()
+        warped = vp.warp(img, M)
+        cv2.imshow('warped', warped)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+    
+        
     # print(VisionProcessor.detect_box(wraped, color="blue", verbose= True))
     # print(VisionProcessor.detect_box(wraped, color="yellow", verbose= True))
-    vp = VisionProcessor()
+    # vp = VisionProcessor()
     #vp.open()
-    print("camera opened.")
-    img = cv2.imread("img/test.jpg")
+    # print("camera opened.")
+    # img = cv2.imread("img/test.jpg")
     # corners = VisionProcessor.corners_ar(1)
     # corners = np.array([[188,  75], [102, 683],[1159,  682],[1073,   73]])
-    corners, image = VisionProcessor.visualize_aruco(img)
-    M = VisionProcessor.align_field(corners)
+    # corners, image = VisionProcessor.visualize_aruco(img)
+    # M = VisionProcessor.align_field(corners)
     #img = vp._getImage()
     #cv2.imwrite("test.jpg", img)
-    wraped = VisionProcessor.warp(img, M)
+    # wraped = VisionProcessor.warp(img, M)
     # print(VisionProcessor.detect_box(wraped, color="blue", verbose= True))
     # print(VisionProcessor.detect_box(wraped, color="yellow", verbose= True))
-    print(VisionProcessor.get_robot_pose(wraped, verbose=True))
+    # print(VisionProcessor.get_robot_pose(warped, verbose=True))
     cv2.waitKey(0)
     # VisionProcessor.obstacles_map(wraped, verbose=True)
     

@@ -113,7 +113,7 @@ class KF:
         return B
     
     @logger.catch
-    def plot_gaussian(self, verbose=False, factor=1000, dt=1e-3):
+    def plot_gaussian(self, factor=1000, dt=1e-2):
         
         def cov_ellipse(state, cov):
             # Covariance matrix correspond to x and y position
@@ -218,7 +218,7 @@ if __name__ == '__main__':
     # initial covariance
     pre_cov = np.ones([3, 3]) * 0.03
     # displacement in left and right wheels
-    dsl = [112.2, 112.2, 112.2, 112.2]
+    dsl = [1e-10, 2, 1, 110]
     dsr = [0, 0, 0, 0]
     measurement = [None, None, None, None]
 
