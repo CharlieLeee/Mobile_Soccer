@@ -348,6 +348,15 @@ class VisionProcessor():
     
     @staticmethod
     def corners_ar(cam_id, verbose=False):
+        """Get centers of corners based on aruco markers
+
+        Args:
+            cam_id (int): The ID of the webcam you use
+            verbose (bool, optional): Show images that are used to find centers. Defaults to False.
+
+        Returns:
+            centers of corners
+        """
         video = cv2.VideoCapture(cam_id)
         video.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
         video.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
@@ -400,6 +409,46 @@ class VisionProcessor():
             ret_corners.append(center[i])
         return np.array(ret_corners)
 
+    @staticmethod
+    def visualize_aruco(img):
+        """Visualize detection in Notebook
+        Output:
+        Corners, image
+        """
+        image = img.copy()
+        arucoDict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_5X5_50)
+        arucoParams = cv2.aruco.DetectorParameters_create()
+        center = {}
+        
+        corners, ids, _ = cv2.aruco.detectMarkers(image, arucoDict, parameters=arucoParams)
+        
+        
+        if len(corners) > 0:
+            ids = ids.flatten()
+            for (markerCorner, markerID) in zip(corners, ids):
+                corners = markerCorner.reshape((4, 2))
+                (topLeft, topRight, bottomRight, bottomLeft) = corners
+
+                # Convert to integer pairs
+                topRight = (int(topRight[0]), int(topRight[1]))
+                bottomRight = (int(bottomRight[0]), int(bottomRight[1]))
+                bottomLeft = (int(bottomLeft[0]), int(bottomLeft[1]))
+                topLeft = (int(topLeft[0]), int(topLeft[1]))
+                cv2.line(image, topLeft, topRight, (0, 255, 0), 2)
+                cv2.line(image, topRight, bottomRight, (0, 255, 0), 2)
+                cv2.line(image, bottomRight, bottomLeft, (0, 255, 0), 2)
+                cv2.line(image, bottomLeft, topLeft, (0, 255, 0), 2)
+                
+                cX = int((topLeft[0] + bottomRight[0]) / 2.0)
+                cY = int((topLeft[1] + bottomRight[1]) / 2.0)
+                cv2.putText(image, str([cX, cY]),(cX, cY), cv2.FONT_HERSHEY_SIMPLEX,\
+				0.5, (0, 255, 0), 2)
+                center[markerID] = [cX, cY]
+                cv2.circle(image, (cX, cY), 4, (0, 0, 255), -1)
+        ret_corners = []
+        for i in range(1, 5):
+            ret_corners.append(center[i])
+        return np.array(ret_corners), image
 
     @staticmethod
     def align_field(corners):
@@ -570,14 +619,14 @@ if __name__ == "__main__":
     vp = VisionProcessor()
     #vp.open()
     print("camera opened.")
-    img = cv2.imread("img/example.jpg")
+    img = cv2.imread("img/test.jpg")
     # corners = VisionProcessor.corners_ar(1)
     # corners = np.array([[188,  75], [102, 683],[1159,  682],[1073,   73]])
-    corners = VisionProcessor.corners_gmm(img)
+    corners, image = VisionProcessor.visualize_aruco(img)
     M = VisionProcessor.align_field(corners)
     #img = vp._getImage()
     #cv2.imwrite("test.jpg", img)
-    wraped = VisionProcessor.warp(img, M)
+    warped = VisionProcessor.warp(img, M)
     # print(VisionProcessor.detect_box(wraped, color="blue", verbose= True))
     # print(VisionProcessor.detect_box(wraped, color="yellow", verbose= True))
     print(VisionProcessor.get_robot_pose(wraped, verbose=True))
