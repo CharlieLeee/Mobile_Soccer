@@ -113,7 +113,7 @@ class KF:
         return B
     
     @logger.catch
-    def plot_gaussian(self, verbose=False, factor=400):
+    def plot_gaussian(self, verbose=False, factor=1000):
         
         def cov_ellipse(state, cov):
             # Covariance matrix correspond to x and y position
@@ -184,9 +184,13 @@ class KF:
         # State transition according to EKF state function
         
         # Constraints on theta+T/2 to prevent overflow
-        theta_post = (theta + T/2) % (2 * np.pi)  
+        theta_post = theta + T/2 
         Fxu = np.array([D*np.cos(theta_post), D*np.sin(theta_post), T]).reshape(-1, 1)
+        #logger.info(Fxu)
+        #logger.info(T)
         est_state = pre_state + Fxu
+        # Constraints on T
+        est_state[2][0] = est_state[2][0] % (2*np.pi)
         est_cov = np.matmul(A, np.matmul(pre_cov, A.T)) + np.matmul(B, np.matmul(self.R, B.T))
 
         # if measurements exist, apply filter
@@ -214,16 +218,18 @@ if __name__ == '__main__':
     # initial covariance
     pre_cov = np.ones([3, 3]) * 0.03
     # displacement in left and right wheels
-    dsl = [1.5, 1.5, 1.4, 1.7]
-    dsr = [1.5, 1.5, 1.4, 1.7]
-    measurement = [[2.5, 1, 0], [4.0, 1, 0], None, None]
+    dsl = [112.2, 112.2, 112.2, 112.2]
+    dsr = [0, 0, 0, 0]
+    measurement = [None, None, None, None]
 
     kf = KF(pre_state, pre_cov, qx=0.3, qy=0.3, qtheta=0.3, rl=0.1, rr=0.1, b=0.08)
     for i in range(len(dsl)):
-        print(kf.kalman_filter(dsl[i], dsr[i], measurement[i]))
+        kf.kalman_filter(dsl[i], dsr[i], measurement[i])
+        # print(kf.kalman_filter(dsl[i], dsr[i], measurement[i]))
     kf.plot_gaussian()
 
     kfn = KF(pre_state, pre_cov, qx=0.3, qy=0.3, qtheta=0.3, rl=0.1, rr=0.1, b=0.08)
     for i in range(len(dsl)):
-        print(kfn.kalman_filter(dsl[i], dsr[i]))
+        kfn.kalman_filter(dsl[i], dsr[i])
+        # print(kfn.kalman_filter(dsl[i], dsr[i]))
     kfn.plot_gaussian()
