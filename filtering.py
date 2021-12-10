@@ -113,7 +113,7 @@ class KF:
         return B
     
     @logger.catch
-    def plot_gaussian(self, factor=1000, dt=1e-2):
+    def plot_gaussian(self, factor=100, dt=1e-2):
         
         def cov_ellipse(state, cov):
             # Covariance matrix correspond to x and y position
@@ -147,6 +147,8 @@ class KF:
         y = np.array(self.states)[:, 1, :]
         ax.plot(x, y, '-w', \
                 label='states')
+        # Plot 
+        
         for i in range(0, len(self.states), int(1/dt)):
             px, py = cov_ellipse(self.states[i], self.covs[i]/factor)
             
@@ -218,18 +220,18 @@ if __name__ == '__main__':
     # initial covariance
     pre_cov = np.ones([3, 3]) * 0.03
     # displacement in left and right wheels
-    dsl = [1e-10, 2, 1, 110]
-    dsr = [0, 0, 0, 0]
+    dsl = [0.3, .2, .1, .11]
+    dsr = [.5, .1, .2, .3]
     measurement = [None, None, None, None]
 
     kf = KF(pre_state, pre_cov, qx=0.3, qy=0.3, qtheta=0.3, rl=0.1, rr=0.1, b=0.08)
     for i in range(len(dsl)):
         kf.kalman_filter(dsl[i], dsr[i], measurement[i])
         # print(kf.kalman_filter(dsl[i], dsr[i], measurement[i]))
-    kf.plot_gaussian()
+    kf.plot_gaussian(dt=1)
 
     kfn = KF(pre_state, pre_cov, qx=0.3, qy=0.3, qtheta=0.3, rl=0.1, rr=0.1, b=0.08)
     for i in range(len(dsl)):
         kfn.kalman_filter(dsl[i], dsr[i])
         # print(kfn.kalman_filter(dsl[i], dsr[i]))
-    kfn.plot_gaussian()
+    kfn.plot_gaussian(dt=1)

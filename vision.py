@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from numpy.lib.function_base import angle
 from numpy.lib.type_check import imag
 from sklearn import mixture
 from scipy import linalg
@@ -24,6 +25,12 @@ class VisionProcessor():
         self.cap = cv2.VideoCapture(self.camera_index)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        # Wait for the camera to initialize
+        img = self._getImage()
+        print("Camera Initializing...")
+        time.sleep(2)
+        print('Initializing done!')
+        return img
 
     def close(self):
         self.cap.release()
@@ -39,19 +46,16 @@ class VisionProcessor():
             raise Exception("Camera Not Found!")
         return self.image
 
-    def getMap(self, update = False):
-        om = self._getObs(update)
-        while om is None:
-            om = self._getObs(True)
+    def getMap(self, image):
+        om = self._getObs(image)
+        if om is None:
+            print('No obstacle map detected!')
+        
         return GridMap(FieldHeight, FieldWidth, FieldScale, om)
 
-    def _getObs(self, update = False):
-        if update:
-            self._getImage()
-            self.M = VisionProcessor.align_field(self.image)
-            self.wrapped_image = VisionProcessor.warp(self.image, self.M)
+    def _getObs(self, warp_image):
         
-        return VisionProcessor.obstacles_map(self.wrapped_image, color='pink')
+        return VisionProcessor.obstacles_map(warp_image, color='pink')
     
     def getBall(self, update = False):
         ballpos = self._getBall(update)
@@ -367,7 +371,7 @@ class VisionProcessor():
             image = self._getImage()
 
             corners, ids, rejected = cv2.aruco.detectMarkers(image, arucoDict, parameters=arucoParams)
-            
+            print('Still waiting to get all four corners...')
             
             if len(corners) > 0:
                 ids = ids.flatten()
@@ -498,6 +502,8 @@ class VisionProcessor():
         contours,hierarchy = cv2.findContours(opening, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         #Taking contour with biggest area
+        if len(contours) == 0:
+            return None, None
         cnt = max(contours, key = cv2.contourArea)
         if (len(cnt)==0):
             print(F"Warning: {color} box not detected on field")
@@ -529,12 +535,14 @@ class VisionProcessor():
     def get_robot_pose(image, verbose = False):
 
         #Detect the yellow box
-        cx_yellow,cy_yellow=VisionProcessor.detect_box(image,'yellow',verbose)
+        cx_yellow,cy_yellow=VisionProcessor.detect_box(image,'yellow',verbose=False)
         #Detect the red box
-        cx_red,cy_red=VisionProcessor.detect_box(image,'blue', verbose)
+        cx_red,cy_red=VisionProcessor.detect_box(image,'blue', verbose=False)
         #Save red box center as robot's xy
         # [TODO] We should set the center of the line connecting two wheels 
         # as the center of the robot
+        if (cx_yellow is None) or (cx_red is None):
+            return None
         robot_xy=Pos(cx_red,cy_red)
 
         if verbose:
@@ -546,13 +554,20 @@ class VisionProcessor():
 
         #Calculating the angle of the robot
         #First calculating the horizontal and vertical displacements
-        dy=(cy_yellow-cx_red)
+        dy=(cy_yellow-cy_red)
         dx=(cx_yellow-cx_red)
         #Calculating the angle between the two dx dy
         # We return the negative value because 
         # the origin of image is on the top left corner 
         # but by convention we take it at the bottom
-        robot_angle=-math.atan2(dx,dy)
+        robot_angle= math.atan2(-dy,dx)
+        if -0.5*math.pi < robot_angle <=0:
+            robot_angle += 0.5*math.pi
+        elif -0.5*math.pi =< robot_angle < 0:
+            robot_angle = -robot_angle + 2*math.pi
+        elif -math.pi =< robot_angle < -0.5*math.pi:
+            robot_angle
+
         return State(robot_xy,robot_angle)
 
     @staticmethod
@@ -567,7 +582,7 @@ class VisionProcessor():
         if verbose:
             cv2.imshow("",map)
             cv2.waitKey(0)
-            kernel = np.ones((5,5),np.uint8)
+            kernel = np.ones((11,11),np.uint8)
             erosion = cv2.erode(map,kernel,iterations = 7)        
             cv2.imshow("",erosion)
             cv2.waitKey(0)
@@ -595,22 +610,40 @@ class VisionProcessor():
 
 
 if __name__ == "__main__":
-    
+    import matplotlib.pyplot as plt
+    import time
     # img = cv2.imread("test.jpg")
     # img = cv2.resize(img, (1280, 720))
     # print(img.shape)
-    vp = VisionProcessor()
-    corners = vp.corners_ar(0)
+    
+    vp = VisionProcessor(camera_index=0)
+    vp.open()
+    corners = vp.corners_ar()
     print(corners)
     # # corners = VisionProcessor.corners_gmm(img)
     M = VisionProcessor.align_field(corners)
+    
+    # Get obstacle map
+    
+    img = vp._getImage()
+    warped = vp.warp(img, M)
+    cv2.imshow('warped', warped)
+    cv2.waitKey()
+    obs = VisionProcessor.obstacles_map(warped, color='pink', verbose=True)
+    cv2.imshow('obs', obs)
+    cv2.waitKey()
+    
+
+
+
     while True:
         img = vp._getImage()
         warped = vp.warp(img, M)
         cv2.imshow('warped', warped)
+        print(vp.get_robot_pose(warped, verbose=True))
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-    
+    vp.close()
         
     # print(VisionProcessor.detect_box(wraped, color="blue", verbose= True))
     # print(VisionProcessor.detect_box(wraped, color="yellow", verbose= True))

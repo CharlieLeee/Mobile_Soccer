@@ -115,7 +115,6 @@ class GridMap:
         #    if p == o: return False
         #return True
         return not self.obs_map[p.x][p.y]
-    
 
 if __name__ == "__main__":
     s1 = State(Pos(0,0), 0.0)
