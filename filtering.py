@@ -182,7 +182,10 @@ class KF:
         
         # next state calculation
         # State transition according to EKF state function
-        Fxu = np.array([D*np.cos(theta+T/2), D*np.sin(theta+T/2), T]).reshape(-1, 1)
+        
+        # Constraints on theta+T/2 to prevent overflow
+        theta_post = theta + T/2 % (2 * np.pi)  
+        Fxu = np.array([D*np.cos(theta_post), D*np.sin(theta_post), T]).reshape(-1, 1)
         est_state = pre_state + Fxu
         est_cov = np.matmul(A, np.matmul(pre_cov, A.T)) + np.matmul(B, np.matmul(self.R, B.T))
 
