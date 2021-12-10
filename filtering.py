@@ -113,7 +113,7 @@ class KF:
         return B
     
     @logger.catch
-    def plot_gaussian(self, verbose=False, factor=1000):
+    def plot_gaussian(self, verbose=False, factor=1000, dt=1e-3):
         
         def cov_ellipse(state, cov):
             # Covariance matrix correspond to x and y position
@@ -147,7 +147,7 @@ class KF:
         y = np.array(self.states)[:, 1, :]
         ax.plot(x, y, '-w', \
                 label='states')
-        for i in range(len(self.states)):
+        for i in range(0, len(self.states), int(1/dt)):
             px, py = cov_ellipse(self.states[i], self.covs[i]/factor)
             
             if i == 0:
