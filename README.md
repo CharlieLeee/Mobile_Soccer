@@ -1,5 +1,31 @@
 # Final Project for Mobile Robotics
 
+## Run it!
+
+### Report in Jupyter Notebook
+
+`soccer_player.ipynb`
+
+it imports some package from
+
+* `filtering.py`
+* `geo.py`
+* `global_navigation.py`
+* `vision.py`
+
+The local navigation part is done in the chapter **motion control**.
+
+### Python Program
+
+`soccer_player.py`
+
+```bash
+python soccer_player.py --port COM6
+```
+[TODO]
+
+It uses the same packages except for motion control, which uses serial communication. 
+
 ## Introduction
 
 Soccer Player.
