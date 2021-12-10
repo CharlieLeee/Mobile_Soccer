@@ -95,10 +95,10 @@ class MotionController:
             delta_theta = Pos.projectin2pi(delta_theta)
             if self.verbose:
                 print(F"headto_theta: {headto_theta}")
-            if abs(delta_theta) > 1.0:
+            if abs(delta_theta) > self.eps_delta_theta:#1.0:
                 self.rotate(delta_theta)
-            elif abs(delta_theta) > self.eps_delta_theta:
-                self.approach(delta_r, delta_theta)
+            # elif abs(delta_theta) > self.eps_delta_theta:
+            #     self.approach(delta_r, delta_theta)
             else:
                 self.approach(delta_r, 0)
             return False
@@ -112,8 +112,9 @@ class MotionController:
         if self.verbose:
             print(F"approach to dr:{delta_r}, dt:{delta_theta}")
         # assume u only move <interval> s. 
-        advance_speed = min(1000.0*delta_r/self.interval/self.speed_scale, self.max_speed)
-        delta_speed = 1000.0*delta_theta/self.interval/self.rotate_scale
+        advance_speed = min(delta_r/self.interval/self.speed_scale + 20, self.max_speed)
+        delta_speed = delta_theta/self.interval/self.rotate_scale
+        print("delta_theta", delta_theta,"caculated delta speed",delta_speed)
         if delta_speed > 0:
             delta_speed = min(delta_speed, self.max_speed/2)
             self.move(min(advance_speed, self.max_speed - 2*abs(delta_speed)), delta_speed)
@@ -124,11 +125,11 @@ class MotionController:
     def rotate(self, delta_theta):
         """rotate in place
         """
-        delta_speed = delta_theta/(self.interval/1000.0)/self.rotate_scale
+        delta_speed = delta_theta/(self.interval)/self.rotate_scale
         if delta_speed > 0:
-            self.move(0, min(delta_speed, self.max_speed))
+            self.move(0, min(delta_speed + 10, self.max_speed))
         else:
-            self.move(0, max(delta_speed, -self.max_speed))
+            self.move(0, max(delta_speed - 10, -self.max_speed))
 
     def move(self, vel, omega = 0):
         """
