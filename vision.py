@@ -626,7 +626,7 @@ if __name__ == "__main__":
     M = VisionProcessor.align_field(corners)
     #img = vp._getImage()
     #cv2.imwrite("test.jpg", img)
-    warped = VisionProcessor.warp(img, M)
+    wraped = VisionProcessor.warp(img, M)
     # print(VisionProcessor.detect_box(wraped, color="blue", verbose= True))
     # print(VisionProcessor.detect_box(wraped, color="yellow", verbose= True))
     print(VisionProcessor.get_robot_pose(wraped, verbose=True))

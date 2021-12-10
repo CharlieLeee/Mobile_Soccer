@@ -303,6 +303,16 @@ class PathPlanner:
             for i in range(1, pe.x - ps.x - 1):
                 if not self.__check(Pos(ps.x + i, (int)(dir*i*s + ps.y))):
                     return True
+        elif p1.y == p2.y:
+            if p1.x > p2.x:
+                ps = p2
+                pe = p1
+            else:
+                ps = p1
+                pe = p2
+            for i in range(1, pe.y - ps.y -1):
+                if not self.__check(Pos(ps.x + i, ps.y)):
+                    return True
         else:
             s = abs(1.0*(p1.x - p2.x)/(p1.y - p2.y))
             if p1.y > p2.y:
