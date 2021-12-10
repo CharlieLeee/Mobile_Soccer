@@ -35,7 +35,8 @@ S_stablize_filter_steps = 10
 # -- Controllers --
 G_mc = motion_control.MotionController(
     Thymio.serial(port=THYMIO_PORT, refreshing_rate=THYMIO_REFRESH_RATE), 
-    S_motion_interval, verbose=G_verbose)
+    eps_delta_r=S_epsilon_dis, eps_delta_theta=S_epsilon_theta, 
+    time_interval = S_motion_interval, verbose=G_verbose)
 G_mc.timer = time.time()
 G_vision = vision.VisionProcessor()
 G_vision.open()

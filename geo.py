@@ -35,6 +35,15 @@ class Pos:
         return Pos(self.x*f, self.y*f)
 
     @staticmethod
+    def projectin2pi(t):
+        t = t % (2.0*math.pi)
+        if t > math.pi:
+            t -= 2*math.pi
+        elif t < -math.pi:
+            t += 2*math.pi
+        return t
+
+    @staticmethod
     def portion(p1, p2, alpha):
         if alpha < 0: alpha = 0.0
         elif alpha > 1: alpha = 1.0
@@ -63,7 +72,8 @@ class State:
         return self.pos.delta_theta(s.pos)
     
     def delta_theta(self, s):
-        return s.ori - self.ori
+        dt = s.ori - self.ori
+        return Pos.projectin2pi(dt)
 
     def multiply(self, f):
         return State(self.pos.multiply(f), self.ori)

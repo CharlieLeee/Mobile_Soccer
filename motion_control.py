@@ -5,6 +5,7 @@ Author: JiangfanLi
 Description: 
 Motion Control with Thymio Interface
 '''
+from geo import *
 from loguru import logger
 from Thymio import Thymio
 import time
@@ -16,8 +17,8 @@ class MotionController:
     def __init__(self, thymio, time_interval = 10, # ms 
                  eps_delta_r = 0.005, eps_delta_theta = 0.01,
                  max_speed = 100, 
-                 speed_scale = 0.000315, # (m/s) / speed_in_motor_command; 0.000315 for speed<200; 0.0003 for speed \in (200,400)
-                 rotate_scale = 0.006, # TODO (rad/s) / speed_in_motor_command
+                 speed_scale = 0.0004, # (m/s) / speed_in_motor_command; 0.000315 for speed<200; 0.0003 for speed \in (200,400)
+                 rotate_scale = 0.01, # TODO (rad/s) / speed_in_motor_command
                  obstSpeedGain = 5,  # /100 (actual gain: 5/100=0.05)
                  verbose = False
                  ):
@@ -38,6 +39,7 @@ class MotionController:
         self.max_speed = max_speed
         self.speed_scale = speed_scale
         self.rotate_scale = rotate_scale
+        self.obstSpeedGain = obstSpeedGain
 
         self.verbose = verbose
 
@@ -76,11 +78,13 @@ class MotionController:
         # 4.1 Are we close enough to the next waypoint?  
         delta_r = Thymio_state.dis(waypoint)
         if delta_r < self.eps_delta_r:
+            if self.verbose:
+                print("Close to the point")
             # check the rotation
             delta_theta = Thymio_state.delta_theta(waypoint)
             if not theta_track or abs(delta_theta) < self.eps_delta_theta:
                 if self.verbose:
-                    print("Path Finished")
+                    print(Thymio_state,"Point Finished")
                 return True
             else:
                 self.rotate(delta_theta) #PULSE
@@ -88,6 +92,7 @@ class MotionController:
             # 4.2 Go to the next waypoint
             headto_theta = Thymio_state.headto(waypoint)
             delta_theta = headto_theta - Thymio_state.ori
+            delta_theta = Pos.projectin2pi(delta_theta)
             if self.verbose:
                 print(F"headto_theta: {headto_theta}")
             if abs(delta_theta) > 1.0:
@@ -110,9 +115,11 @@ class MotionController:
         advance_speed = min(1000.0*delta_r/self.interval/self.speed_scale, self.max_speed)
         delta_speed = 1000.0*delta_theta/self.interval/self.rotate_scale
         if delta_speed > 0:
-            self.move(advance_speed, min(delta_speed, self.max_speed/2))
+            delta_speed = min(delta_speed, self.max_speed/2)
+            self.move(min(advance_speed, self.max_speed - 2*abs(delta_speed)), delta_speed)
         else:
-            self.move(advance_speed, max(delta_speed, -self.max_speed/2))
+            delta_speed = max(delta_speed, -self.max_speed/2)
+            self.move(min(advance_speed, self.max_speed - 2*abs(delta_speed)), delta_speed)
 
     def rotate(self, delta_theta):
         """rotate in place
@@ -129,7 +136,6 @@ class MotionController:
         """
         if self.verbose:
             print(F"move with {vel}, {omega}")
-        vel = min(vel, self.max_speed - 2*abs(omega))
         self._set_motor(vel - omega, vel + omega)
 
     def stop(self):
@@ -156,7 +162,7 @@ class MotionController:
         l_speed = ls if ls >= 0 else 2 ** 16 + ls
         r_speed = rs if rs >= 0 else 2 ** 16 + rs
         self.update_displacement()
-        logger.info(l_speed)
+        # logger.info(l_speed)
         self.thymio.set_var("motor.left.target", l_speed)
         self.thymio.set_var("motor.right.target", r_speed)
 
@@ -164,8 +170,8 @@ class MotionController:
         self.update_displacement()
         ret = self.displacement
         self.displacement = [0, 0]
-        if self.verbose:
-            print(F"Displacement:{ret}")
+        # if self.verbose:
+        #     print(F"Displacement:{ret}")
         return ret
 
     # -- Sensor --
