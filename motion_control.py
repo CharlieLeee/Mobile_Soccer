@@ -17,8 +17,8 @@ class MotionController:
     def __init__(self, thymio, time_interval = 10, # ms 
                  eps_delta_r = 0.005, eps_delta_theta = 0.01,
                  max_speed = 100, 
-                 speed_scale = 0.0004, # (m/s) / speed_in_motor_command; 0.000315 for speed<200; 0.0003 for speed \in (200,400)
-                 rotate_scale = 0.01, # TODO (rad/s) / speed_in_motor_command
+                 speed_scale = 0.000315, # (m/s) / speed_in_motor_command; 0.000315 for speed<200; 0.0003 for speed \in (200,400)
+                 rotate_scale = 0.0005, # TODO (rad/s) / speed_in_motor_command
                  obstSpeedGain = 5,  # /100 (actual gain: 5/100=0.05)
                  verbose = False
                  ):
@@ -112,9 +112,8 @@ class MotionController:
         if self.verbose:
             print(F"approach to dr:{delta_r}, dt:{delta_theta}")
         # assume u only move <interval> s. 
-        advance_speed = min(delta_r/self.interval/self.speed_scale + 20, self.max_speed)
+        advance_speed = min(delta_r/self.interval/self.speed_scale * 50 + 20, self.max_speed)
         delta_speed = delta_theta/self.interval/self.rotate_scale
-        print("delta_theta", delta_theta,"caculated delta speed",delta_speed)
         if delta_speed > 0:
             delta_speed = min(delta_speed, self.max_speed/2)
             self.move(min(advance_speed, self.max_speed - 2*abs(delta_speed)), delta_speed)
@@ -125,6 +124,8 @@ class MotionController:
     def rotate(self, delta_theta):
         """rotate in place
         """
+        if self.verbose:
+            print(F"rotate to dt:{delta_theta}")
         delta_speed = delta_theta/(self.interval)/self.rotate_scale
         if delta_speed > 0:
             self.move(0, min(delta_speed + 10, self.max_speed))
@@ -153,6 +154,8 @@ class MotionController:
         rls = int(rls * float(os.getenv("OFFSET_WHEELS")))
         rls = rls if rls < 2 ** 15 else rls - 2 ** 16
         rrs = rrs if rrs < 2 ** 15 else rrs - 2 ** 16
+        rls = 0 if abs(rls) > self.max_speed * 1.1 else rls
+        rrs = 0 if abs(rrs) > self.max_speed * 1.1 else rrs 
         self.displacement[0] += rls*interval*self.speed_scale
         self.displacement[1] += rrs*interval*self.speed_scale
 
@@ -161,7 +164,7 @@ class MotionController:
         rs = (int)(rs)
         l_speed = int(ls / float(os.getenv("OFFSET_WHEELS")))
         l_speed = ls if ls >= 0 else 2 ** 16 + ls
-        r_speed = rs if rs >= 0 else 2 ** 16 + rs
+        r_speed = rs if rs >= 0 else 2 ** 16 + rs           
         self.update_displacement()
         # logger.info(l_speed)
         self.thymio.set_var("motor.left.target", l_speed)
