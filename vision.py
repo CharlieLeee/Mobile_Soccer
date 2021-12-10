@@ -560,13 +560,11 @@ class VisionProcessor():
         # We return the negative value because 
         # the origin of image is on the top left corner 
         # but by convention we take it at the bottom
-        robot_angle= math.atan2(-dy,dx)
-        if -0.5*math.pi < robot_angle <=0:
-            robot_angle += 0.5*math.pi
-        elif -0.5*math.pi =< robot_angle < 0:
-            robot_angle = -robot_angle + 2*math.pi
-        elif -math.pi =< robot_angle < -0.5*math.pi:
-            robot_angle
+        
+        
+        robot_angle= math.atan2(dx,dy)
+        robot_angle = robot_angle + 2*math.pi if robot_angle < 0 else robot_angleq
+
 
         return State(robot_xy,robot_angle)
 
@@ -625,13 +623,13 @@ if __name__ == "__main__":
     
     # Get obstacle map
     
-    img = vp._getImage()
-    warped = vp.warp(img, M)
-    cv2.imshow('warped', warped)
-    cv2.waitKey()
-    obs = VisionProcessor.obstacles_map(warped, color='pink', verbose=True)
-    cv2.imshow('obs', obs)
-    cv2.waitKey()
+    # img = vp._getImage()
+    # warped = vp.warp(img, M)
+    # cv2.imshow('warped', warped)
+    # cv2.waitKey()
+    # obs = VisionProcessor.obstacles_map(warped, color='pink', verbose=True)
+    # cv2.imshow('obs', obs)
+    # cv2.waitKey()
     
 
 
