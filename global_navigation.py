@@ -10,6 +10,7 @@ Global Navigation Module:
 * Path Simplification
 * Calculate Approach Pose
 '''
+from numpy.lib.function_base import bartlett
 from geo import *
 
 from queue import PriorityQueue
@@ -40,11 +41,17 @@ class PathPlanner:
             self._plot()
 
 
-    def approach(self, pBall):
+    def approach(self, pBall, bias_pos = Pos(0, 0)):
         """
         calculate a position for Thymio to approach the ball
         that the ball in front of the Thymio will be at the goal position.
+
+        @param pBall: the position of the ball
+        @param bias_pos: the offset of the basket from the center of the thymio
+        Note: the basket should have the same orientation as the thymio
         """
+        dx = bias_pos.x
+        dy = bias_pos.y
         num = (int)((Thymio_Size + Ball_Size) / self.map.scale)
         q = PriorityQueue()
         for i in range(max(0, pBall.x - num),
@@ -52,7 +59,9 @@ class PathPlanner:
             for j in range(max(0, pBall.y - num),
                 min(self.map.width, pBall.y + num)):
                 if abs((i-pBall.x) ** 2 + (j-pBall.y) ** 2 - (int)(Ball_Size/self.map.scale)) < 1:
-                    p = Pos(i,j)
+                    theta = math.atan2(pBall.y - j, pBall.x - i)
+                    p = Pos(i - (int)(dx*math.cos(theta) - dy*math.sin(theta)),
+                            j - (int)(dx*math.sin(theta) + dy*math.cos(theta)))
                     if self.map.check(p):
                         q.put((abs(pBall.dis(p) - (Thymio_Size + Ball_Size)), p))
         if q.empty():
@@ -92,7 +101,7 @@ class PathPlanner:
                         p = Pos(x,y)
                         if self.__check(p):
                             if not self._obsinbetween(p, path[-2]):
-                                q.put((abs(p.dis(goal) - Thymio_Size/self.map.scale), p))
+                                q.put((abs(p.dis(goal) - (Thymio_Size+Ball_Size)/self.map.scale), p))
                             else:
                                 break
                         else:
