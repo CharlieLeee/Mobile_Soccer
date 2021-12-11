@@ -4,7 +4,7 @@ from numpy.lib.function_base import angle
 from numpy.lib.type_check import imag
 from sklearn import mixture
 from scipy import linalg
-
+import time
 from geo import *
 
 FieldWidth = 1050
@@ -363,9 +363,6 @@ class VisionProcessor():
         Returns:
             centers of corners
         """
-        self.open()
-
-        # time.sleep(2.0)
             
         arucoDict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_5X5_50)
         arucoParams = cv2.aruco.DetectorParameters_create()
@@ -547,7 +544,7 @@ class VisionProcessor():
         # as the center of the robot
         if (cx_yellow is None) or (cx_red is None):
             return None
-        robot_xy=Pos(cx_red,cy_red)
+        robot_xy=Pos(cy_red, cx_red).multiply(FieldScale)
 
         if verbose:
             #Draw orientation Vector using yellow and red box centroids
@@ -573,7 +570,7 @@ class VisionProcessor():
         return State(robot_xy,robot_angle)
 
     @staticmethod
-    def obstacles_map(image, color = 'pink', blur_kernel = (19, 19), verbose = False):
+    def obstacles_map(image, color = 'pink', blur_kernel = (3, 3), verbose = False):
         blurred_image_red = cv2.GaussianBlur(image,blur_kernel,cv2.BORDER_DEFAULT)
         image_red=VisionProcessor.color_filter(blurred_image_red,color)
         
@@ -613,7 +610,6 @@ class VisionProcessor():
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    import time
     # img = cv2.imread("test.jpg")
     # img = cv2.resize(img, (1280, 720))
     # print(img.shape)
@@ -627,13 +623,13 @@ if __name__ == "__main__":
     
     # Get obstacle map
     
-    # img = vp._getImage()
-    # warped = vp.warp(img, M)
-    # cv2.imshow('warped', warped)
-    # cv2.waitKey()
-    # obs = VisionProcessor.obstacles_map(warped, color='pink', verbose=True)
-    # cv2.imshow('obs', obs)
-    # cv2.waitKey()
+    img = vp._getImage()
+    warped = vp.warp(img, M)
+    cv2.imshow('warped', warped)
+    cv2.waitKey()
+    obs = VisionProcessor.obstacles_map(warped, color='pink', verbose=True)
+    cv2.imshow('obs', obs)
+    cv2.waitKey()
     
 
 

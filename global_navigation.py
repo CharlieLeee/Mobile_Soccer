@@ -10,6 +10,7 @@ Global Navigation Module:
 * Path Simplification
 * Calculate Approach Pose
 '''
+from math import atan2, sin
 from geo import *
 
 from queue import PriorityQueue
@@ -40,21 +41,27 @@ class PathPlanner:
             self._plot()
 
 
-    def approach(self, pBall):
+    def approach(self, pBall, bias_pos = Pos(0,0)):
         """
         calculate a position for Thymio to approach the ball
         that the ball in front of the Thymio will be at the goal position.
         """
-        num = (int)((Thymio_Size + Ball_Size) / self.map.scale)
+        dx = bias_pos.x
+        dy = bias_pos.y
+        num = (int)( Ball_Size*2 / self.map.scale)
         q = PriorityQueue()
-        for i in range(max(0, pBall.x - num),
-            min(self.map.height, pBall.x + num)):
-            for j in range(max(0, pBall.y - num),
-                min(self.map.width, pBall.y + num)):
-                if abs((i-pBall.x) ** 2 + (j-pBall.y) ** 2 - (int)(Ball_Size/self.map.scale)) < 1:
-                    p = Pos(i,j)
-                    if self.map.check(p):
-                        q.put((abs(pBall.dis(p) - (Thymio_Size + Ball_Size)), p))
+        for i in range(max(0, pBall.x - 2*num),
+            min(self.map.height, pBall.x + 2*num)):
+            for j in range(max(0, pBall.y - 2*num),
+                min(self.map.width, pBall.y + 2*num)):
+                if abs((i-pBall.x) ** 2 + (j-pBall.y) ** 2 - num ** 2) < 1:
+                    theta = math.atan2(pBall.y - j, pBall.x - i)
+                    if theta > np.pi or theta < 0:
+                        continue
+                    p = Pos(i - (int)(dx*math.cos(theta) - dy*math.sin(theta)),
+                            j - (int)(dx*math.sin(theta) + dy*math.cos(theta)))
+                    if self._check(p):
+                        q.put((abs(pBall.dis(p) - num), p))
         if q.empty():
             raise Exception("can not find good position to approach")
         dis, p = q.get()
@@ -81,18 +88,19 @@ class PathPlanner:
         ]
         q = PriorityQueue()
         goal = path[-1]
+        dis_num = (Thymio_Size + Ball_Size)/self.map.scale
         tanv = math.tan(self.goalori)
         if abs(tanv) < 1:
             dir = 1 if abs(self.goalori) > math.pi/2 else -1
             for i in range(1, self.map.height):
                 x = goal.x + i*dir
                 if x >= 0 and x < self.map.height:
-                    y = goal.y + (int)(i*tanv)
+                    y = goal.y - (int)(i*tanv)
                     if y >= 0 and y < self.map.width:
                         p = Pos(x,y)
-                        if self.__check(p):
+                        if self._check(p):
                             if not self._obsinbetween(p, path[-2]):
-                                q.put((abs(p.dis(goal) - Thymio_Size/self.map.scale), p))
+                                q.put((abs(p.dis(goal) - dis_num), p))
                             else:
                                 break
                         else:
@@ -102,16 +110,16 @@ class PathPlanner:
                 else:
                     break
         else:
-            dir = 1 if self.goalori > math.pi else -1
+            dir = 1 if (self.goalori > math.pi) or (self.goalori < 0) else -1
             for j in range(self.map.width):
                 y = goal.y + j*dir
                 if y >= 0 and y < self.map.width:
                     x = goal.x + (int)(j/tanv)
                     if x >= 0 and x < self.map.height:
                         p = Pos(x,y)
-                        if self.__check(p):
+                        if self._check(p):
                             if not self._obsinbetween(p, path[-2]):
-                                q.put((abs(p.dis(goal) - Thymio_Size/self.map.scale), p))
+                                q.put((abs(p.dis(goal) - dis_num), p))
                             else:
                                 break
                         else:
@@ -123,7 +131,8 @@ class PathPlanner:
 
         c, p = q.get()
         sPath.append(State(p.multiply(self.map.scale), self.goalori))
-        sPath[-2].ori = path[-2].delta_theta(p)
+        if len(sPath) > 1:
+            sPath[-2].ori = path[-2].delta_theta(p)
         sPath.append(State(goal.multiply(self.map.scale), self.goalori))
         # for s in sPath:
         #     print(s)
@@ -135,7 +144,7 @@ class PathPlanner:
         considering the size of Thymio
         """
         assert self.map is not None
-        num = (int)((Thymio_Size + 2*Ball_Size) / self.map.scale)
+        num = (int)((Thymio_Size*1.2 + 2*Ball_Size) / self.map.scale)
 
         #self.obs = [[False for _ in range(self.map.width)] for _ in range(self.map.height)]
         self.obs = np.zeros((self.map.height, self.map.width))
@@ -211,7 +220,7 @@ class PathPlanner:
                 # check(p)
                 for pn,c in self.__get_neighbors(p):
                     newcost =  gcost[p.x][p.y] + c
-                    if self.__check(pn) and gcost[pn.x][pn.y] > newcost:
+                    if self._check(pn) and gcost[pn.x][pn.y] > newcost:
                         gcost[pn.x][pn.y] = newcost
                         parent[pn.x][pn.y] = p
                         qps.put((heuristic(pn), pn))
@@ -240,7 +249,7 @@ class PathPlanner:
             if random.random() < p_bias:
                 q = self.map.goal
             else:
-                q = self.__valid_sample()
+                q = self._valid_sample()
             # 2. nearest node
             ni = 0
             mdis = nodes[ni].dis(q)
@@ -257,7 +266,7 @@ class PathPlanner:
                 continue
             # 3. try one step
             nn = Pos.portion(q, nodes[ni], min(1, step_len/mdis))
-            if self.__check(nn) and not self._obsinbetween(nodes[ni], nn):
+            if self._check(nn) and not self._obsinbetween(nodes[ni], nn):
                 # 4.1 check goal condition
                 if nn.dis(self.map.goal) < 1:
                     waypoints.append(nn)
@@ -281,6 +290,9 @@ class PathPlanner:
     def collect_wps(self, waypoints, eps = 1e-3):
         """merge waypoints in the same direction
         """
+        if len(waypoints) <= 2:
+            print("too short!")
+            return waypoints
         p1 = waypoints[0]
         nwps = [p1]
         p2 = waypoints[1]
@@ -306,7 +318,7 @@ class PathPlanner:
                 pe = p2
             dir = 1.0 if ps.y < pe.y else -1.0
             for i in range(1, pe.x - ps.x - 1):
-                if not self.__check(Pos(ps.x + i, (int)(dir*i*s + ps.y))):
+                if not self._check(Pos(ps.x + i, (int)(dir*i*s + ps.y))):
                     return True
         elif p1.y == p2.y:
             if p1.x > p2.x:
@@ -316,7 +328,7 @@ class PathPlanner:
                 ps = p1
                 pe = p2
             for i in range(1, pe.y - ps.y -1):
-                if not self.__check(Pos(ps.x + i, ps.y)):
+                if not self._check(Pos(ps.x + i, ps.y)):
                     return True
         else:
             s = abs(1.0*(p1.x - p2.x)/(p1.y - p2.y))
@@ -328,7 +340,7 @@ class PathPlanner:
                 pe = p2
             dir = 1.0 if ps.x < pe.x else -1.0
             for i in range(1, pe.y - ps.y - 1):
-                if not self.__check(Pos((int)(ps.x + dir*i*s), ps.y + i)):
+                if not self._check(Pos((int)(ps.x + dir*i*s), ps.y + i)):
                     return True
         return False
 
@@ -337,6 +349,9 @@ class PathPlanner:
 
         Provide less lines for motion
         """
+        if len(waypoints) <= 2:
+            print("too short!")
+            return waypoints
         # grand-parent-child
         grand = waypoints[0]
         nwps = [grand]
@@ -378,15 +393,15 @@ class PathPlanner:
             self.neighbor = 4
             return self.__get_neighbors(p)
 
-    def __check(self, p):
+    def _check(self, p):
         return not self.obs[p.x][p.y]
 
-    def __valid_sample(self):
+    def _valid_sample(self):
         while True:
             x = random.randint(0, self.map.height-1)
             y = random.randint(0, self.map.width-1)
             sample = Pos(x,y)
-            if self.__check(sample):
+            if self._check(sample):
                 return sample
 
     """Visualization"""

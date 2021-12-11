@@ -16,7 +16,7 @@ import math
 import numpy as np
 
 Thymio_Size = 0.08 # length from the center to the front, assuming it's the collision radius.
-Ball_Size = 0.01 # radius
+Ball_Size = 0.04 # radius
 
 class Pos:
     def __init__(self, x, y):
@@ -59,7 +59,7 @@ class Pos:
         return self.x <= other.x
 
     def __str__(self):
-        return F"({self.x},{self.x})"
+        return F"({self.x},{self.y})"
         
 class State:
     def __init__(self, p, t):
@@ -116,6 +116,10 @@ class GridMap:
         #for o in self.obs:
         #    if p == o: return False
         #return True
+        if p.x < 0 or p.x >= self.height:
+            return False
+        if p.y < 0 or p.y >= self.width:
+            return False
         return not self.obs_map[p.x, p.y]
 
 if __name__ == "__main__":
