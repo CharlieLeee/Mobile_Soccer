@@ -13,6 +13,7 @@ Tools Classes for map, ...
  V x
 """
 import math
+import numpy as np
 
 Thymio_Size = 0.08 # length from the center to the front, assuming it's the collision radius.
 Ball_Size = 0.01 # radius
@@ -93,8 +94,9 @@ class GridMap:
         self.height = h # x
         self.width = w  # y
         self.scale = s # in meters
+        self.obs_map = obs_map
         if obs_map is None:
-            self.obs_map = [[False for _ in range(self.width)] for _ in range(self.height)]
+            self.obs_map = np.zeros((h, w))
 
     def set_goal(self, s):
         self.goal = s
@@ -105,7 +107,7 @@ class GridMap:
     def set_obs(self, obslist):
         self.obs = obslist
         for o in self.obs:
-            self.obs_map[o.x][o.y] = True
+            self.obs_map[o.x, o.y] = True
 
     """functions for Map Checking"""
     def check(self, p):
@@ -114,7 +116,7 @@ class GridMap:
         #for o in self.obs:
         #    if p == o: return False
         #return True
-        return not self.obs_map[p.x][p.y]
+        return not self.obs_map[p.x, p.y]
 
 if __name__ == "__main__":
     s1 = State(Pos(0,0), 0.0)

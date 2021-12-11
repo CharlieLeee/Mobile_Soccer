@@ -9,7 +9,7 @@ from geo import *
 
 FieldWidth = 1050
 FieldHeight = 680
-FieldScale = 0.0075
+FieldScale = 0.00075
 CAMERA_INDEX = 0
 
 class VisionProcessor():
@@ -50,6 +50,10 @@ class VisionProcessor():
         om = self._getObs(image)
         if om is None:
             print('No obstacle map detected!')
+        else:
+            om = cv2.cvtColor(om, cv2.COLOR_RGB2GRAY)
+            om = cv2.bitwise_not(om)
+            # om = cv2.threshold(om, cv2.THRESH_BINARY, 255,cv2.THRESH_OTSU)
         
         return GridMap(FieldHeight, FieldWidth, FieldScale, om)
 
@@ -563,9 +567,9 @@ class VisionProcessor():
         robot_angle= math.atan2(-dy,dx)
         if -0.5*math.pi < robot_angle <=0:
             robot_angle += 0.5*math.pi
-        elif -0.5*math.pi =< robot_angle < 0:
+        #elif -0.5*math.pi =< robot_angle < 0:
             robot_angle = -robot_angle + 2*math.pi
-        elif -math.pi =< robot_angle < -0.5*math.pi:
+        #elif -math.pi =< robot_angle < -0.5*math.pi:
             robot_angle
 
         return State(robot_xy,robot_angle)

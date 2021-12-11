@@ -49,7 +49,7 @@ class PathPlanner:
         q = PriorityQueue()
         for i in range(max(0, pBall.x - num),
             min(self.map.height, pBall.x + num)):
-            for j in range(max(0, pBall.y),
+            for j in range(max(0, pBall.y - num),
                 min(self.map.width, pBall.y + num)):
                 if abs((i-pBall.x) ** 2 + (j-pBall.y) ** 2 - (int)(Ball_Size/self.map.scale)) < 1:
                     p = Pos(i,j)
@@ -136,18 +136,23 @@ class PathPlanner:
         """
         assert self.map is not None
         num = (int)((Thymio_Size + 2*Ball_Size) / self.map.scale)
-        self.obs = [[False for _ in range(self.map.width)] for _ in range(self.map.height)]
-        def ava(x, y):
-            return x >=0 and x<self.map.height and y>=0 and y<self.map.width
+
+        #self.obs = [[False for _ in range(self.map.width)] for _ in range(self.map.height)]
+        self.obs = np.zeros((self.map.height, self.map.width))
+        #def ava(x, y):
+        #    return x >=0 and x<self.map.height and y>=0 and y<self.map.width
         for i in range(self.map.height):
             for j in range(self.map.width):
                 if not self.map.check(Pos(i,j)):
-                    self.obs[i][j] = True
-                    if num != 0:
-                        for m in range(-num, num):
-                            for n in range(-num, num):
-                                if m**2 + n**2 <= num ** 2 and ava(i+m, j+n):
-                                    self.obs[i+m][j+n] = True
+                    self.obs[i,j] = True
+                    # if num != 0:
+                    #     for m in range(-num, num):
+                    #         for n in range(-num, num):
+                    #             if m**2 + n**2 <= num ** 2 and ava(i+m, j+n):
+                    #                 self.obs[i+m][j+n] = True
+        
+        import cv2
+        self.obs = cv2.dilate(self.obs, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (num,num)))
 
     def plan(self, map = None):
         """return a path from the start to the goal
