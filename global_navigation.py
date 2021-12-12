@@ -85,7 +85,7 @@ class PathPlanner:
         """
         self.map.start = s.pos
 
-    def assign_ori(self, path):
+    def assign_ori(self, path, factor = 1.2):
         """
         assign orientation for waypoints
 
@@ -102,7 +102,7 @@ class PathPlanner:
         ]
         q = PriorityQueue()
         goal = path[-1]
-        dis_num = (Thymio_Size + Ball_Size)/self.map.scale
+        dis_num = factor*(Thymio_Size + Ball_Size)/self.map.scale
         tanv = math.tan(self.goalori)
         if abs(tanv) < 1:
             dir = 1 if abs(self.goalori) > math.pi/2 else -1
@@ -128,7 +128,7 @@ class PathPlanner:
             for j in range(self.map.width):
                 y = goal.y + j*dir
                 if y >= 0 and y < self.map.width:
-                    x = goal.x + (int)(j/tanv)
+                    x = goal.x - (int)(j/tanv)
                     if x >= 0 and x < self.map.height:
                         p = Pos(x,y)
                         if self._check(p):

@@ -16,7 +16,7 @@ import math
 import numpy as np
 
 Thymio_Size = 0.08 # length from the center to the front, assuming it's the collision radius.
-Ball_Size = 0.04 # radius
+Ball_Size = 0.015 # radius
 
 class Pos:
     def __init__(self, x, y):

@@ -82,7 +82,7 @@ class VisionProcessor():
         return VisionProcessor.get_robot_pose(self.image)
 
     def getGate(self, update = False):
-        return Pos(FieldHeight/2, FieldWidth)
+        return Pos(int(FieldHeight/2), FieldWidth - 1)
 
     @staticmethod
     def color_filter(image, color):
