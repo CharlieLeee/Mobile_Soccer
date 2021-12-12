@@ -18,7 +18,7 @@ class KF:
     The state of Thymio is encoded as [Px, Py, Rotation]
     Reference paper: https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.1021.234&rep=rep1&type=pdf
     """
-    def __init__(self, init_state, init_cov, qx, qy, qtheta, rl, rr, b) -> None:
+    def __init__(self, init_state, init_cov, qx, qy, qtheta, rl, rr, b, linearize=False) -> None:
         """Initialization
 
         Args:
@@ -37,18 +37,19 @@ class KF:
         self.b = b # constant: distance between wheels 
         
         # self.H is omitted since H here is an eye(3)
-        # Covariance matrix of state 
-        self.R = np.array([
+        # Covariance matrix in the measurement stage
+        self.Q = np.array([
             [qx, 0, 0],
             [0, qy, 0],
             [0, 0, qtheta]
         ])
-        # Covariance matrix of measurement
-        self.Q = np.array([
+        # Covariance matrix in the action stage
+        self.R = np.array([
             [rr, 0],
             [0, rl]
         ])
 
+        self.linearize = linearize
         # States and Covariance history
         self.states = [init_state]
         self.covs = [init_cov]
@@ -63,13 +64,14 @@ class KF:
             rl (float): variance of left encoder
             rr (float): variance of right encoder
         """
-        self.R = np.array([
+        # Covariance matrix in the measurement stage
+        self.Q = np.array([
             [qx, 0, 0],
             [0, qy, 0],
             [0, 0, qtheta]
         ])
-        # Covariance matrix of measurement
-        self.Q = np.array([
+        # Covariance matrix in the action stage
+        self.R = np.array([
             [rr, 0],
             [0, rl]
         ])
@@ -113,7 +115,7 @@ class KF:
         return B
     
     @logger.catch
-    def plot_gaussian(self, factor=100, dt=1e-2, xlim=[-1.5, 1.5], ylim=[-1.5, 1.5]):
+    def plot_gaussian(self, factor=100, dt=1e-2, xlim=[-2, 2], ylim=[-2, 2]):
         
         def cov_ellipse(state, cov):
             # Covariance matrix correspond to x and y position
@@ -186,26 +188,27 @@ class KF:
 
 
         pre_state = np.array(pre_state).reshape(-1, 1) # reshape to [3, 1]
-        
         # next state calculation
         # State transition according to EKF state function
         
         # Constraints on theta+T/2 to prevent overflow
-        theta_post = theta + T/2 
-        Fxu = np.array([D*np.cos(theta_post), D*np.sin(theta_post), T]).reshape(-1, 1)
-        #logger.info(Fxu)
-        #logger.info(T)
-        est_state = pre_state + Fxu
+        if not self.linearize:
+            theta_post = theta + T/2 
+            Fxu = np.array([D*np.cos(theta_post), D*np.sin(theta_post), T]).reshape(-1, 1)
+            est_state = pre_state + Fxu
+        else:
+            control = np.array([dsr, dsl]).reshape(-1, 1)
+            est_state = np.matmul(A, pre_state) + np.matmul(B, control)
         # Constraints on T
         est_state[2][0] = est_state[2][0] % (2*np.pi)
-        est_cov = np.matmul(A, np.matmul(pre_cov, A.T)) + np.matmul(B, np.matmul(self.Q, B.T))
+        est_cov = np.matmul(A, np.matmul(pre_cov, A.T)) + np.matmul(B, np.matmul(self.R, B.T))
 
         # if measurements exist, apply filter
         if measurement:
             measurement = np.array([measurement.pos.x, measurement.pos.y, measurement.ori])
             # gain
-            K = np.matmul(est_cov, np.linalg.inv(est_cov + self.R))
             I = np.array(measurement).reshape(-1, 1) - est_state
+            K = np.matmul(est_cov, np.linalg.inv(est_cov + self.Q))
             est_state += np.matmul(K, I)
             est_cov -= np.matmul(K, est_cov)
         
@@ -227,10 +230,10 @@ if __name__ == '__main__':
     pre_cov = np.ones([3, 3]) * 0.03
     # displacement in left and right wheels
     dsl = [0.3, .2, .1, .11]
-    dsr = [.5, .1, .2, .3]
+    dsr = [.3, .2, .1, .11]
     measurement = [None, None, None, None]
 
-    kf = KF(pre_state, pre_cov, qx=0.3, qy=0.3, qtheta=0.3, rl=0.1, rr=0.1, b=0.08)
+    kf = KF(pre_state, pre_cov, qx=0.3, qy=0.3, qtheta=0.3, rl=0.1, rr=0.1, b=0.08, linearize=False)
     for i in range(len(dsl)):
         kf.kalman_filter(dsl[i], dsr[i], measurement[i])
         # print(kf.kalman_filter(dsl[i], dsr[i], measurement[i]))
