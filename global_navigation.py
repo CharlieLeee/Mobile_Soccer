@@ -41,32 +41,30 @@ class PathPlanner:
             self._plot()
 
 
-    def approach(self, pBall, bias_pos = Pos(0,0)):
+    def approach(self, pBall, bias_pos = None, theta = np.pi/2):
         """
         calculate a position for Thymio to approach the ball
         that the ball in front of the Thymio will be at the goal position.
+        @param pBall: the position of the goal point for the basket to approach
+        @param bias_pos: the position of the basket, in thymio's coordination
+        @param theta: the orientation to approach to the ball
         """
-        dx = bias_pos.x
-        dy = bias_pos.y
-        num = (int)( Ball_Size*2 / self.map.scale)
-        q = PriorityQueue()
-        for i in range(max(0, pBall.x - 2*num),
-            min(self.map.height, pBall.x + 2*num)):
-            for j in range(max(0, pBall.y - 2*num),
-                min(self.map.width, pBall.y + 2*num)):
-                if abs((i-pBall.x) ** 2 + (j-pBall.y) ** 2 - num ** 2) < 1:
-                    theta = math.atan2(pBall.y - j, pBall.x - i)
-                    if theta > np.pi or theta < 0:
-                        continue
-                    p = Pos(i - (int)(dx*math.cos(theta) - dy*math.sin(theta)),
-                            j - (int)(dx*math.sin(theta) + dy*math.cos(theta)))
-                    if self._check(p):
-                        q.put((abs(pBall.dis(p) - num), p))
-        if q.empty():
-            raise Exception("can not find good position to approach")
-        dis, p = q.get()
-        ori = math.atan2(pBall.y - p.y, pBall.x - p.x)
-        return State(p, ori)
+        if bias_pos is None:
+            dx = int((Thymio_Size + Ball_Size)/self.map.scale)
+            dy = 0
+        else:
+            dx = bias_pos.x
+            dy = bias_pos.y
+        r = Ball_Size*2 / self.map.scale
+        pBasketx = pBall.x - r*math.cos(theta)
+        pBaskety = pBall.y - r*math.sin(theta)
+        p = Pos(int(pBasketx - dx*math.cos(theta) - dy*math.sin(theta)),
+                            int(pBaskety - dx*math.sin(theta) + dy*math.cos(theta)))
+        if not self._check(p):
+            raise Exception("The approach position collide with obstacles!")
+        if self._obsinbetween(p, pBall):
+            raise Exception("There's obstacle between approach point to the ball")
+        return State(p, theta)
 
     def set_map(self, map):
         self.map = map
@@ -437,19 +435,26 @@ if __name__ == "__main__":
     # generate a random map
     # Note: 600*800 is too big for A star
     #       using RRT instead
-    h, w = 30, 40
+    h, w = 50, 100
+    goalpoint = Pos(int(h/2), w-1)
     rmap = GridMap(h, w, 0.01)
     rmap.set_start(Pos(0,0))
-    rmap.set_goal(Pos(h-1, w-1))
+    rmap.set_goal(goalpoint)
     import random
-    obslist = [Pos(random.randint(11,h-11),random.randint(11,w-11)) for _ in range(3)]
+    obslist = [Pos(random.randint(11,h-11),random.randint(11,w-40)) for _ in range(10)]
     rmap.set_obs(obslist)
 
     # planner
     ppr = PathPlanner(rmap,path_simplification=True, plot=True,neighbor=8, method="RRT")
-    print(ppr.approach(Pos(h-1, w-1)))
+    app = ppr.approach(goalpoint)
+    print("Goal is", goalpoint, "Approach with", app)
+    ppr.set_goal(app)
     path = ppr.plan()
-    # spath = ppr.assign_ori(path, 0.0)
+    for p in path:
+        print(p)
+    spath = ppr.assign_ori(path)
+    for s in spath:
+        print(s)
     # ppr._plot([Pos((int)(s.pos.x/0.01), (int)(s.pos.y/0.01)) for s in spath])
     #for p in path:
     #    print(p)
