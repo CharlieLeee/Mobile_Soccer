@@ -54,13 +54,13 @@ class VisionProcessor():
             om = cv2.cvtColor(om, cv2.COLOR_RGB2GRAY)
             om = cv2.bitwise_not(om)
             # om = cv2.threshold(om, cv2.THRESH_BINARY, 255,cv2.THRESH_OTSU)
-        
+
         return GridMap(FieldHeight, FieldWidth, FieldScale, om)
 
     def _getObs(self, warp_image):
-        
+
         return VisionProcessor.obstacles_map(warp_image, color='pink')
-    
+
     def getBall(self, update = False):
         ballpos = self._getBall(update)
         while ballpos is None:
@@ -109,39 +109,39 @@ class VisionProcessor():
 
         #Form a mask to filter green in HSV space
         elif color=="green":
-            lower1 = np.array([75, 30, 20])
-            upper1 = np.array([90, 225, 225])
-            mask = cv2.inRange(result, lower1, upper1) 
+            lower1 = np.array([40, 40, 40])
+            upper1 = np.array([85, 225, 225])
+            mask = cv2.inRange(result, lower1, upper1)
 
         #Form a mask to filter Yellow in HSV space
         elif color=="yellow":
             lower1 = np.array([10, 0, 0])
             upper1 = np.array([32, 255, 255])
-            mask = cv2.inRange(result, lower1, upper1) 
+            mask = cv2.inRange(result, lower1, upper1)
 
         #Form a mask to filter Blue in HSV space
         elif color=="blue":
             lower1 = np.array([110, 120, 0])
             upper1 = np.array([135, 255, 255])
-            mask = cv2.inRange(result, lower1, upper1) 
+            mask = cv2.inRange(result, lower1, upper1)
 
         elif color=="white":
             # sensitivity=45
             lower1 = np.array([0,0,175])
             upper1 = np.array([255,255,185])
-            mask = cv2.inRange(result, lower1, upper1) 
+            mask = cv2.inRange(result, lower1, upper1)
 
         elif color=="black":
             # sensitivity=45
             lower1 = np.array([0,0,0])
             upper1 = np.array([100,100,200])
-            mask = cv2.inRange(result, lower1, upper1) 
+            mask = cv2.inRange(result, lower1, upper1)
 
         elif color=="pink":
             # sensitivity=45
-            lower1 = np.array([145,110,110])
+            lower1 = np.array([145,90,90])
             upper1 = np.array([255,255,255])
-            mask = cv2.inRange(result, lower1, upper1) 
+            mask = cv2.inRange(result, lower1, upper1)
 
         else:
             print("Error Color Provided Not Valid")
@@ -154,37 +154,37 @@ class VisionProcessor():
 
     @staticmethod
     def get_ball_xy(image,      # input image to detect the circle on
-                    color = "green", 
-                    minDist = 750,    # Minimum distance between the centers of the detected circles. 
-                    param1 = 12,     # Method uses canny filter edge detection.  
+                    color = "green",
+                    minDist = 750,    # Minimum distance between the centers of the detected circles.
+                    param1 = 12,     # Method uses canny filter edge detection.
                     param2 = 18,     # accumulator threshold for the circle centers at the detection stage
-                    minRadius = 20,  # min radius of circle to detect 
+                    minRadius = 20,  # min radius of circle to detect
                     maxRadius = 35,   # max radius of circle to detect
                     verbose = False
                     ):
         '''
         image = input image to detect the circle on
-        minDist = Minimum distance between the centers of the detected circles. 
-                  if too large circles may be missed, 
+        minDist = Minimum distance between the centers of the detected circles.
+                  if too large circles may be missed,
                   if too small too many circles may appear.
-        param1= Method uses canny filter edge detection.  
-                This is the higher threshold of the two passed to the Canny edge detector 
+        param1= Method uses canny filter edge detection.
+                This is the higher threshold of the two passed to the Canny edge detector
                 (the lower one is twice smaller of the larger one).
-        param2 = accumulator threshold for the circle centers at the detection stage. 
+        param2 = accumulator threshold for the circle centers at the detection stage.
                  The smaller it is, the more false circles may be detected.
-        minRadius = min radius of circle to detect 
+        minRadius = min radius of circle to detect
         maxRadius = max radius of circle to detect
-        
+
         Code based on: https://stackoverflow.com/questions/60637120/detect-circles-in-opencv
         '''
-        # Color Filter tha given image        
+        # Color Filter tha given image
         filtered_img= VisionProcessor.color_filter(image,color)
 
         # Converting the image into grayscale
         gray = cv2.cvtColor(filtered_img, cv2.COLOR_BGR2GRAY)
 
         # Smoothening the Image
-        blurred = cv2.medianBlur(gray, 25) 
+        blurred = cv2.medianBlur(gray, 25)
 
         # Finds circles in a grayscale image using the Hough transform
         circles = cv2.HoughCircles(blurred, cv2.HOUGH_GRADIENT, 1, minDist, param1=param1, param2=param2, minRadius=minRadius, maxRadius=maxRadius)
@@ -195,7 +195,7 @@ class VisionProcessor():
 
             #Loop through them and draw them on the given image + print coordinates
             for c in circles[0,:]:
-                # [ Question: So Ball is the last circle? ]
+
                 x_ball=c[0]
                 y_ball=c[1]
                 if verbose:
@@ -207,13 +207,13 @@ class VisionProcessor():
             if verbose:
                 print("Ball Not Found")
             return None
-        
+
     @staticmethod
     def resize_image(img, percent, method = cv2.INTER_AREA):
         '''
         img = input image to be resized
         percent = percentage by which to resize the image
-        method = interpolation method. default: INTER_AREA 
+        method = interpolation method. default: INTER_AREA
         '''
         # percent of original size
         width = int(img.shape[1] * percent / 100)
@@ -225,8 +225,8 @@ class VisionProcessor():
         return resized
 
     @staticmethod
-    def divide4(contour) -> list:      
-        contour = contour.reshape((-1,2))  
+    def divide4(contour) -> list:
+        contour = contour.reshape((-1,2))
 
         gmm = mixture.GaussianMixture(
                     n_components=4, covariance_type="full"
@@ -248,16 +248,16 @@ class VisionProcessor():
         x = x1 + t1
         y = y1 + t1/np.tan(alpha1)
         return (int)(x), (int)(y)
-        
+
     @staticmethod
-    def corners_gmm(image, 
+    def corners_gmm(image,
                     color = 'green', # color of the field
                     #gray_threshold = [28,243],
                     verbose = False):
         """Return corners using GMM
 
         Args:
-            
+
             color (str, optional): [description]. Defaults to 'green'.
             verbose (bool, optional): [description]. Defaults to False.
 
@@ -269,18 +269,18 @@ class VisionProcessor():
         result= VisionProcessor.color_filter(image, color)
         # if verbose:
         #     cv2.imshow('color filter',result)
-        
+
         # Finding Contours to detect the area of the field
         # convert to a gray image than a binary image.
         gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
-        
+
         (T, thresh) = cv2.threshold(gray, 0, 255,	cv2.THRESH_OTSU)
         #ret,thresh = cv2.threshold(gray,gray_threshold[0],gray_threshold[1],0)
         # morphology operation against noise
         closing = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, np.ones((10, 10)))
         # extract contours
         contours,hierarchy = cv2.findContours(closing,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
+
         if verbose:
             ch = image.copy()
             cv2.drawContours(ch,contours,-1,(255,0,0))
@@ -288,7 +288,7 @@ class VisionProcessor():
 
         # Taking the one with the largest area # serve as the opening operation to some extent
         c = max(contours, key = cv2.contourArea)
-        
+
         # Taking its Convex hull to get an aproximate rectangle
         hull = cv2.convexHull(c)
         # if verbose:
@@ -296,15 +296,15 @@ class VisionProcessor():
         #     cv2.drawContours(ch, [c], 0, (0,255,0), cv2.FILLED)
         #     cv2.imshow('convexHull',ch)
 
-        # Using GMM to divide 4 segment of the quadrilateral   
-        hull_img = np.zeros_like(image)     
+        # Using GMM to divide 4 segment of the quadrilateral
+        hull_img = np.zeros_like(image)
         length = len(hull)
         for i in range(len(hull)):
             cv2.line(hull_img, tuple(hull[i][0]), tuple(hull[(i+1)%length][0]), (255,0,0), 2)
         hull_img = cv2.cvtColor(hull_img, cv2.COLOR_RGB2GRAY)
         if verbose:
             cv2.imshow("", hull_img)
-            
+
         # gray = cv2.cvtColor(ch,cv2.COLOR_BGR2GRAY)
         # edges = cv2.Canny(gray,50,150,apertureSize = 3)
         convexcontour,_ = cv2.findContours(hull_img,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -353,7 +353,7 @@ class VisionProcessor():
         scorners = [lt, ld, rd, rt]
         print(scorners)
         return scorners
-    
+
     def corners_ar(self, verbose=False):
         """Get centers of corners based on aruco markers
 
@@ -363,7 +363,7 @@ class VisionProcessor():
         Returns:
             centers of corners
         """
-            
+
         arucoDict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_5X5_50)
         arucoParams = cv2.aruco.DetectorParameters_create()
 
@@ -373,7 +373,7 @@ class VisionProcessor():
 
             corners, ids, rejected = cv2.aruco.detectMarkers(image, arucoDict, parameters=arucoParams)
             print('Still waiting to get all four corners...')
-            
+
             if len(corners) > 0:
                 ids = ids.flatten()
                 for (markerCorner, markerID) in zip(corners, ids):
@@ -389,7 +389,7 @@ class VisionProcessor():
                     cv2.line(image, topRight, bottomRight, (0, 255, 0), 2)
                     cv2.line(image, bottomRight, bottomLeft, (0, 255, 0), 2)
                     cv2.line(image, bottomLeft, topLeft, (0, 255, 0), 2)
-                    
+
                     cX = int((topLeft[0] + bottomRight[0]) / 2.0)
                     cY = int((topLeft[1] + bottomRight[1]) / 2.0)
                     center[markerID] = [cX, cY]
@@ -415,10 +415,10 @@ class VisionProcessor():
         arucoDict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_5X5_50)
         arucoParams = cv2.aruco.DetectorParameters_create()
         center = {}
-        
+
         corners, ids, _ = cv2.aruco.detectMarkers(image, arucoDict, parameters=arucoParams)
-        
-        
+
+
         if len(corners) > 0:
             ids = ids.flatten()
             for (markerCorner, markerID) in zip(corners, ids):
@@ -434,7 +434,7 @@ class VisionProcessor():
                 cv2.line(image, topRight, bottomRight, (0, 255, 0), 2)
                 cv2.line(image, bottomRight, bottomLeft, (0, 255, 0), 2)
                 cv2.line(image, bottomLeft, topLeft, (0, 255, 0), 2)
-                
+
                 cX = int((topLeft[0] + bottomRight[0]) / 2.0)
                 cY = int((topLeft[1] + bottomRight[1]) / 2.0)
                 cv2.putText(image, str([cX, cY]),(cX, cY), cv2.FONT_HERSHEY_SIMPLEX,\
@@ -476,7 +476,7 @@ class VisionProcessor():
 
         #Wrapping the image based on the perspective transform
         return M
-        
+
     @staticmethod
     def warp(image, M, flag=cv2.INTER_LINEAR):
         return cv2.warpPerspective(image, M, (FieldWidth, FieldHeight), flags=flag)
@@ -540,7 +540,7 @@ class VisionProcessor():
         #Detect the red box
         cx_red,cy_red=VisionProcessor.detect_box(image,'blue', verbose=False)
         #Save red box center as robot's xy
-        # [TODO] We should set the center of the line connecting two wheels 
+        # [TODO] We should set the center of the line connecting two wheels
         # as the center of the robot
         if (cx_yellow is None) or (cx_red is None):
             return None
@@ -558,11 +558,11 @@ class VisionProcessor():
         dy=(cy_yellow-cy_red)
         dx=(cx_yellow-cx_red)
         #Calculating the angle between the two dx dy
-        # We return the negative value because 
-        # the origin of image is on the top left corner 
+        # We return the negative value because
+        # the origin of image is on the top left corner
         # but by convention we take it at the bottom
-        
-        
+
+
         robot_angle= math.atan2(dx,dy)
         robot_angle = robot_angle + 2*math.pi if robot_angle < 0 else robot_angle
 
@@ -573,18 +573,18 @@ class VisionProcessor():
     def obstacles_map(image, color = 'pink', blur_kernel = (3, 3), verbose = False):
         blurred_image_red = cv2.GaussianBlur(image,blur_kernel,cv2.BORDER_DEFAULT)
         image_red=VisionProcessor.color_filter(blurred_image_red,color)
-        
+
         map=np.empty_like(image_red)
         map[image_red!=0]=0
         map[image_red==0]=255
-        
+        kernel = np.ones((3, 3), np.uint8)
+        map = cv2.dilate(map, kernel, iterations=7)
+        kernel = np.ones((9, 9), np.uint8)
+        map = cv2.erode(map, kernel, iterations=1)
         if verbose:
             cv2.imshow("",map)
             cv2.waitKey(0)
-            kernel = np.ones((11,11),np.uint8)
-            erosion = cv2.erode(map,kernel,iterations = 7)        
-            cv2.imshow("",erosion)
-            cv2.waitKey(0)
+
 
         return map
 
@@ -605,7 +605,7 @@ class VisionProcessor():
         cv2.arrowedLine(image, (5, im_size[0]-10), (5, -35+im_size[0]-10), (0,0, 255), thickness=2)
         cv2.putText(image, 'y', (5+15, -35+im_size[0]-10), font, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
-    
+
 
 
 if __name__ == "__main__":
@@ -613,16 +613,16 @@ if __name__ == "__main__":
     # img = cv2.imread("test.jpg")
     # img = cv2.resize(img, (1280, 720))
     # print(img.shape)
-    
+
     vp = VisionProcessor(camera_index=0)
     vp.open()
     corners = vp.corners_ar()
     print(corners)
     # # corners = VisionProcessor.corners_gmm(img)
     M = VisionProcessor.align_field(corners)
-    
+
     # Get obstacle map
-    
+
     img = vp._getImage()
     warped = vp.warp(img, M)
     cv2.imshow('warped', warped)
@@ -630,7 +630,7 @@ if __name__ == "__main__":
     obs = VisionProcessor.obstacles_map(warped, color='pink', verbose=True)
     cv2.imshow('obs', obs)
     cv2.waitKey()
-    
+
 
 
 
@@ -642,7 +642,7 @@ if __name__ == "__main__":
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
     vp.close()
-        
+
     # print(VisionProcessor.detect_box(wraped, color="blue", verbose= True))
     # print(VisionProcessor.detect_box(wraped, color="yellow", verbose= True))
     # vp = VisionProcessor()
@@ -661,7 +661,7 @@ if __name__ == "__main__":
     # print(VisionProcessor.get_robot_pose(warped, verbose=True))
     cv2.waitKey(0)
     # VisionProcessor.obstacles_map(wraped, verbose=True)
-    
+
     # try:
     #     # vp = VisionProcessor()
     #     # gmap = vp.getMap(update=True)
@@ -683,4 +683,3 @@ if __name__ == "__main__":
     #     cv2.waitKey(0)
     # finally:
     #     vp.close()
-
