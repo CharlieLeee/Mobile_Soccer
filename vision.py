@@ -143,6 +143,11 @@ class VisionProcessor():
             upper1 = np.array([255,255,255])
             mask = cv2.inRange(result, lower1, upper1)
 
+        elif color =="brown":
+            lower1 = np.array([10, 100, 20])
+            upper1 = np.array([20, 255, 200])
+            mask = cv2.inRange(result, lower1, upper1)
+
         else:
             print("Error Color Provided Not Valid")
             assert(False)
@@ -202,6 +207,7 @@ class VisionProcessor():
                     cv2.circle(image, (c[0], c[1]), c[2], (0, 255, 0), 2)
                     print("x= ",x_ball,"y= ",y_ball)
                     cv2.circle(image, (x_ball,y_ball), radius=3, color=(0, 0, 255), thickness=-1)
+                    cv2.imshow("ball",image)
             return x_ball, y_ball
         else:
             if verbose:
@@ -609,39 +615,47 @@ class VisionProcessor():
 
 
 if __name__ == "__main__":
+
     import matplotlib.pyplot as plt
-    # img = cv2.imread("test.jpg")
+    img = cv2.imread("calibration/ball.jpg")
+    img_ball = VisionProcessor.color_filter(img, "brown")
+    x, y = VisionProcessor.get_ball_xy(img, color="brown", verbose=True)
+    print(x, y)
+    cv2.waitKey()
+
+
     # img = cv2.resize(img, (1280, 720))
     # print(img.shape)
 
-    vp = VisionProcessor(camera_index=0)
-    vp.open()
-    corners = vp.corners_ar()
-    print(corners)
-    # # corners = VisionProcessor.corners_gmm(img)
-    M = VisionProcessor.align_field(corners)
 
-    # Get obstacle map
+    # vp = VisionProcessor(camera_index=0)
+    # vp.open()
+    # corners = vp.corners_ar()
+    # print(corners)
+    # # # corners = VisionProcessor.corners_gmm(img)
+    # M = VisionProcessor.align_field(corners)
 
-    img = vp._getImage()
-    warped = vp.warp(img, M)
-    cv2.imshow('warped', warped)
-    cv2.waitKey()
-    obs = VisionProcessor.obstacles_map(warped, color='pink', verbose=True)
-    cv2.imshow('obs', obs)
-    cv2.waitKey()
+    # # Get obstacle map
+
+    # img = vp._getImage()
+    # warped = vp.warp(img, M)
+    # cv2.imshow('warped', warped)
+    # cv2.waitKey()
+    # obs = VisionProcessor.obstacles_map(warped, color='pink', verbose=True)
+    # cv2.imshow('obs', obs)
+    # cv2.waitKey()
 
 
 
 
-    while True:
-        img = vp._getImage()
-        warped = vp.warp(img, M)
-        cv2.imshow('warped', warped)
-        print(vp.get_robot_pose(warped, verbose=True))
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-    vp.close()
+    # while True:
+    #     img = vp._getImage()
+    #     warped = vp.warp(img, M)
+    #     cv2.imshow('warped', warped)
+    #     print(vp.get_robot_pose(warped, verbose=True))
+    #     if cv2.waitKey(1) & 0xFF == ord('q'):
+    #         break
+    # vp.close()
 
     # print(VisionProcessor.detect_box(wraped, color="blue", verbose= True))
     # print(VisionProcessor.detect_box(wraped, color="yellow", verbose= True))
