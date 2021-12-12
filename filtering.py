@@ -38,13 +38,13 @@ class KF:
         
         # self.H is omitted since H here is an eye(3)
         # Covariance matrix of state 
-        self.Q = np.array([
+        self.R = np.array([
             [qx, 0, 0],
             [0, qy, 0],
             [0, 0, qtheta]
         ])
         # Covariance matrix of measurement
-        self.R = np.array([
+        self.Q = np.array([
             [rr, 0],
             [0, rl]
         ])
@@ -63,13 +63,13 @@ class KF:
             rl (float): variance of left encoder
             rr (float): variance of right encoder
         """
-        self.Q = np.array([
+        self.R = np.array([
             [qx, 0, 0],
             [0, qy, 0],
             [0, 0, qtheta]
         ])
         # Covariance matrix of measurement
-        self.R = np.array([
+        self.Q = np.array([
             [rr, 0],
             [0, rl]
         ])
@@ -113,7 +113,7 @@ class KF:
         return B
     
     @logger.catch
-    def plot_gaussian(self, factor=100, dt=1e-2):
+    def plot_gaussian(self, factor=100, dt=1e-2, xlim=[-1.5, 1.5], ylim=[-1.5, 1.5]):
         
         def cov_ellipse(state, cov):
             # Covariance matrix correspond to x and y position
@@ -142,12 +142,14 @@ class KF:
 
         # Plot
         fig, ax = plt.subplots()
-        # ax.set_xlim([0, ])
+        ax.set_xlim(xlim)
         ax.invert_yaxis()
-        # ax.set_ylim([0, ])
+        ax.set_ylim(ylim)
         ax.set_facecolor('green')
         x = np.array(self.states)[:, 0, :]
         y = np.array(self.states)[:, 1, :]
+        ax.scatter(y[0], x[0], s=90, c='r', marker='X', label='Start Point')
+        # ax.scatter(y[-1], x[-1], s=90, c='w', marker='*', label='Goal Point')
         ax.plot(y, x, '-w', \
                 label='states')
         # Plot 
@@ -196,13 +198,13 @@ class KF:
         est_state = pre_state + Fxu
         # Constraints on T
         est_state[2][0] = est_state[2][0] % (2*np.pi)
-        est_cov = np.matmul(A, np.matmul(pre_cov, A.T)) + np.matmul(B, np.matmul(self.R, B.T))
+        est_cov = np.matmul(A, np.matmul(pre_cov, A.T)) + np.matmul(B, np.matmul(self.Q, B.T))
 
         # if measurements exist, apply filter
         if measurement:
             measurement = np.array([measurement.pos.x, measurement.pos.y, measurement.ori])
             # gain
-            K = np.matmul(est_cov, np.linalg.inv(est_cov + self.Q))
+            K = np.matmul(est_cov, np.linalg.inv(est_cov + self.R))
             I = np.array(measurement).reshape(-1, 1) - est_state
             est_state += np.matmul(K, I)
             est_cov -= np.matmul(K, est_cov)
@@ -238,4 +240,4 @@ if __name__ == '__main__':
     for i in range(len(dsl)):
         kfn.kalman_filter(dsl[i], dsr[i])
         # print(kfn.kalman_filter(dsl[i], dsr[i]))
-    kfn.plot_gaussian(dt=1)
+    # kfn.plot_gaussian(dt=1)
