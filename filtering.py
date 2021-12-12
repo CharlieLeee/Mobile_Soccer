@@ -142,10 +142,13 @@ class KF:
 
         # Plot
         fig, ax = plt.subplots()
+        # ax.set_xlim([0, ])
+        ax.invert_yaxis()
+        # ax.set_ylim([0, ])
         ax.set_facecolor('green')
         x = np.array(self.states)[:, 0, :]
         y = np.array(self.states)[:, 1, :]
-        ax.plot(x, y, '-w', \
+        ax.plot(y, x, '-w', \
                 label='states')
         # Plot 
         
@@ -153,9 +156,9 @@ class KF:
             px, py = cov_ellipse(self.states[i], self.covs[i]/factor)
             
             if i == 0:
-                ax.fill(px, py, alpha=0.4, facecolor='yellow', edgecolor='yellow', \
+                ax.fill(py, px, alpha=0.4, facecolor='yellow', edgecolor='yellow', \
                     linewidth=1, zorder=1, label='covariances')
-            ax.fill(px, py, alpha=0.4, facecolor='yellow', edgecolor='yellow', \
+            ax.fill(py, px, alpha=0.4, facecolor='yellow', edgecolor='yellow', \
                     linewidth=1, zorder=1)
             # ax.plot(px, py, '--r', label='covariance at step {}'.format(i))
         ax.set_title('State of Thymio')
@@ -165,7 +168,7 @@ class KF:
         
 
     @logger.catch
-    def kalman_filter(self, dsr, dsl, measurement=None):
+    def kalman_filter(self, dsr, dsl, measurement:State=None):
         
         # Get previous state
         pre_state = self.states[-1]
@@ -197,6 +200,7 @@ class KF:
 
         # if measurements exist, apply filter
         if measurement:
+            measurement = np.array([measurement.pos.x, measurement.pos.y, measurement.ori])
             # gain
             K = np.matmul(est_cov, np.linalg.inv(est_cov + self.Q))
             I = np.array(measurement).reshape(-1, 1) - est_state

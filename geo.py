@@ -16,20 +16,25 @@ import math
 import numpy as np
 
 Thymio_Size = 0.08 # length from the center to the front, assuming it's the collision radius.
-Ball_Size = 0.01 # radius
+Ball_Size = 0.04 # radius
 
 class Pos:
     def __init__(self, x, y):
-        self.x = x # Int for GridMap Pos; Float for pos in meter? for Thymio position
+        """2D Position"""
+        self.x = x 
         self.y = y
         
     def dis(self, p):
+        """The distance to another point(euclidean metric)
+        """
         return math.sqrt((p.x - self.x) ** 2 + (p.y - self.y) ** 2)
 
     def dis_man(self, p):
+        """The distance to another point(Manhattan)"""
         return abs(p.x - self.x) + abs(p.y - self.y)
     
     def delta_theta(self, p):
+        """The direction to another point (-pi, pi]"""
         return math.atan2(p.y - self.y, p.x - self.x)
 
     def multiply(self, f):
@@ -37,15 +42,20 @@ class Pos:
 
     @staticmethod
     def projectin2pi(t):
+        """project to (-pi, pi]"""
         t = t % (2.0*math.pi)
         if t > math.pi:
             t -= 2*math.pi
-        elif t < -math.pi:
+        elif t <= -math.pi:
             t += 2*math.pi
         return t
 
     @staticmethod
     def portion(p1, p2, alpha):
+        """return the middle point between p1 and p2
+
+        @param alpha: the weight of p1. [0.0, 1.0]
+        """
         if alpha < 0: alpha = 0.0
         elif alpha > 1: alpha = 1.0
         return Pos((int)(p1.x*alpha + p2.x*(1-alpha)), (int)(p1.y*alpha + p2.y*(1-alpha)))
@@ -59,20 +69,31 @@ class Pos:
         return self.x <= other.x
 
     def __str__(self):
-        return F"({self.x},{self.x})"
+        return F"Pos({self.x}, {self.y})"
         
 class State:
     def __init__(self, p, t):
+        """2D State/Pose = (Position, Orientation)"""
         self.pos = p
         self.ori = t
     
     def dis(self, s):
+        """The distance to another state
+
+        same as the `dis` of `Pos`
+        """
         return self.pos.dis(s.pos)
 
     def headto(self, s):
+        """The direction to another state
+        
+        same as the `delta_theta` of `Pos`
+        """
         return self.pos.delta_theta(s.pos)
     
     def delta_theta(self, s):
+        """The difference of orientation to another state
+        """
         dt = s.ori - self.ori
         return Pos.projectin2pi(dt)
 
@@ -80,7 +101,7 @@ class State:
         return State(self.pos.multiply(f), self.ori)
 
     def __str__(self) -> str:
-        return F"({self.pos.x}, {self.pos.y}, {self.ori})"
+        return F"State({self.pos.x}, {self.pos.y}, {self.ori})"
 
 
 class GridMap: 
@@ -91,9 +112,9 @@ class GridMap:
     # which do you prefer?
     """Vision --set--> GridMap --> GN"""
     def __init__(self, h, w, s, obs_map = None):
-        self.height = h # x
-        self.width = w  # y
-        self.scale = s # in meters
+        self.height = h # height - x
+        self.width = w  # width - y
+        self.scale = s # length of one pixel in meters
         self.obs_map = obs_map
         if obs_map is None:
             self.obs_map = np.zeros((h, w))
@@ -111,15 +132,11 @@ class GridMap:
 
     """functions for Map Checking"""
     def check(self, p):
-        # Will it be more efficient to use Boolean Map? 
-        # -- depend on the number of obstacle cells.
-        #for o in self.obs:
-        #    if p == o: return False
-        #return True
-        if p.x < self.height and p.x >= 0:
-            if p.y < self.width and p.y >= 0:
-                return not self.obs_map[p.x, p.y]
-        return False
+        if p.x < 0 or p.x >= self.height:
+            return False
+        if p.y < 0 or p.y >= self.width:
+            return False
+        return not self.obs_map[p.x, p.y]
 
 if __name__ == "__main__":
     s1 = State(Pos(0,0), 0.0)
