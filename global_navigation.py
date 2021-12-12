@@ -23,10 +23,14 @@ class PathPlanner:
     def __init__(self, map = None, method = "A*", neighbor = 4, path_simplification = False, plot = False):
         """tell me the map, I will give u a path
 
-        u can use 'set_map' to tell me the map,
-        and modify it with 'set_goal' and 'set_start';
-        or specify the map(without enlarging the obstacles)
-        when calling 'plan'
+        u can use `set_map` to tell me the obstacle map,
+        and modify it with `set_goal` and 'set_start';
+        then call `plan` you will get a path
+        @param map: the map. most important thing is the obstacles
+        @param method: the method to plan. "A*" or "RRT"
+        @param neighbor: the number of neighbor. 4 or 6
+        @param path_simplification: do the path simplification or not
+        @param plot: plot the map or not
         """
         self.map = map
         if self.map is not None:
@@ -34,7 +38,6 @@ class PathPlanner:
         self.method = method
         self.neighbor = neighbor
         self.simplify = path_simplification
-        # self.settings = settings # TODO
 
         self.plot = plot
         if self.plot:
@@ -70,16 +73,29 @@ class PathPlanner:
         self.map = map
 
     def set_goal(self, s):
+        """set the desired goal state"""
         self.map.goal = s.pos
         self.goalori = s.ori
 
     def set_start(self, s):
+        """set the start state
+
+        note that we suppose thymio can rotate in place,
+        we don't care about the orientatin of the start state.
+        """
         self.map.start = s.pos
 
     def assign_ori(self, path):
         """
         assign orientation for waypoints
-        return list of States
+
+        this function aims to provide more information about the path.
+        first it will tell the waypoints what the direction to the next.
+        second it insert a waypoint before the goal, so that it's able to 
+        not rotate anymore at the last waypoint.
+        
+        @param path: list of waypoints(Pos)
+        @return: list of waypoints(State)
         """
         sPath = [State(path[i].multiply(self.map.scale), path[i].delta_theta(path[i+1]))\
             for i in range(1, len(path) - 1)
@@ -136,27 +152,22 @@ class PathPlanner:
         #     print(s)
         return sPath
 
-    def enlarge_obs(self):
+    def enlarge_obs(self, clearance_factor = 1.2):
         """
         enlarge the obstacles
-        considering the size of Thymio
+
+        considering the size of Thymio and the ball
+        @param clearance_factor: factor to increase the clearance
         """
         assert self.map is not None
-        num = (int)((Thymio_Size*1.2 + 2*Ball_Size) / self.map.scale)
+        num = int(clearance_factor * (Thymio_Size + 2*Ball_Size) / self.map.scale)
 
-        #self.obs = [[False for _ in range(self.map.width)] for _ in range(self.map.height)]
-        self.obs = np.zeros((self.map.height, self.map.width))
-        #def ava(x, y):
-        #    return x >=0 and x<self.map.height and y>=0 and y<self.map.width
-        for i in range(self.map.height):
-            for j in range(self.map.width):
-                if not self.map.check(Pos(i,j)):
-                    self.obs[i,j] = True
-                    # if num != 0:
-                    #     for m in range(-num, num):
-                    #         for n in range(-num, num):
-                    #             if m**2 + n**2 <= num ** 2 and ava(i+m, j+n):
-                    #                 self.obs[i+m][j+n] = True
+        self.obs = self.map.obs_map
+        # self.obs = np.zeros((self.map.height, self.map.width))
+        # for i in range(self.map.height):
+        #     for j in range(self.map.width):
+        #         if not self.map.check(Pos(i,j)):
+        #             self.obs[i,j] = True
         
         import cv2
         self.obs = cv2.dilate(self.obs, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (num,num)))
@@ -165,8 +176,10 @@ class PathPlanner:
         """return a path from the start to the goal
 
         @param map: GridMap with all the info(start, goal, obstacles)
-        @return waypoints: Queue[Pos]
-            Note: If no feasible path found, the list will be empty
+        @return waypoints: list[Pos]
+            Note: If no feasible path found,
+                for A*, the list will be empty
+                for RRT, it will never ends
         """
         if map is None:
             if self.map is None:
@@ -216,7 +229,7 @@ class PathPlanner:
                 break
             else:
                 # check(p)
-                for pn,c in self.__get_neighbors(p):
+                for pn,c in self._get_neighbors(p):
                     newcost =  gcost[p.x][p.y] + c
                     if self._check(pn) and gcost[pn.x][pn.y] > newcost:
                         gcost[pn.x][pn.y] = newcost
@@ -224,11 +237,9 @@ class PathPlanner:
                         qps.put((heuristic(pn), pn))
 
         if len(waypoints) == 0:
+            print("Warning: A* can not find a path!!")
             return []
         waypoints.reverse()
-        # waypoints = self.collect_wps(waypoints)
-        # if self.simplify:
-        #     waypoints = self.path_simplification(waypoints)
         return waypoints[1:]
 
     def _rrt(self, p_bias = 0.1):
@@ -279,8 +290,6 @@ class PathPlanner:
 
         if len(waypoints) == 0:
             return []
-        # if self.simplify:
-        #     waypoints = self.path_simplification(waypoints)
         waypoints.reverse()
         return waypoints[1:]
 
@@ -365,11 +374,9 @@ class PathPlanner:
         nwps.append(child)
         return nwps
 
-        # TODO: rdp?
-
     """Map Search Operations"""
 
-    def __get_neighbors(self, p):
+    def _get_neighbors(self, p):
         ava = [p.x > 0, p.x < self.map.height-1, p.y > 0, p.y < self.map.width-1]
         bias = [(-1, 0),(1, 0),(0, -1),(0, 1)]
         if self.neighbor == 4:
@@ -389,7 +396,7 @@ class PathPlanner:
         else:
             print("Warning! unsupported neighbor number, using default instead.")
             self.neighbor = 4
-            return self.__get_neighbors(p)
+            return self._get_neighbors(p)
 
     def _check(self, p):
         return not self.obs[p.x][p.y]
@@ -426,7 +433,6 @@ class PathPlanner:
                 sp = self.path_simplification(cp)
                 for p in sp:
                     plot_point(p,250)
-                    # print(p)
 
         plt.imshow(image)
         plt.show()
@@ -455,7 +461,4 @@ if __name__ == "__main__":
     spath = ppr.assign_ori(path)
     for s in spath:
         print(s)
-    # ppr._plot([Pos((int)(s.pos.x/0.01), (int)(s.pos.y/0.01)) for s in spath])
-    #for p in path:
-    #    print(p)
 
