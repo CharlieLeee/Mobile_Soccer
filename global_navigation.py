@@ -85,7 +85,7 @@ class PathPlanner:
         """
         self.map.start = s.pos
 
-    def assign_ori(self, path, factor = 1.2):
+    def assign_ori(self, path, factor = 1.5):
         """
         assign orientation for waypoints
 
@@ -102,23 +102,26 @@ class PathPlanner:
         ]
         q = PriorityQueue()
         goal = path[-1]
-        dis_num = factor*(Thymio_Size + Ball_Size)/self.map.scale
+        dis_num = factor*(2* Ball_Size)/self.map.scale
         tanv = math.tan(self.goalori)
         if abs(tanv) < 1:
             dir = 1 if abs(self.goalori) > math.pi/2 else -1
             for i in range(1, self.map.height):
                 x = goal.x + i*dir
                 if x >= 0 and x < self.map.height:
-                    y = goal.y - (int)(i*tanv)
+                    y = goal.y + (int)(dir*i*tanv)
                     if y >= 0 and y < self.map.width:
                         p = Pos(x,y)
-                        if self._check(p):
-                            if not self._obsinbetween(p, path[-2]):
-                                q.put((abs(p.dis(goal) - dis_num), p))
+                        if p.dis(goal) > dis_num:
+                            if self._check(p):
+                                if not self._obsinbetween(p, path[-2]):
+                                    q.put((p.dis(goal) - dis_num, p))
+                                else:
+                                    break
                             else:
                                 break
                         else:
-                            break
+                            continue
                     else:
                         break
                 else:
@@ -128,21 +131,26 @@ class PathPlanner:
             for j in range(self.map.width):
                 y = goal.y + j*dir
                 if y >= 0 and y < self.map.width:
-                    x = goal.x - (int)(j/tanv)
+                    x = goal.x + (int)(dir*j/tanv)
                     if x >= 0 and x < self.map.height:
                         p = Pos(x,y)
-                        if self._check(p):
-                            if not self._obsinbetween(p, path[-2]):
-                                q.put((abs(p.dis(goal) - dis_num), p))
+                        if p.dis(goal) > dis_num:
+                            if self._check(p):
+                                if not self._obsinbetween(p, path[-2]):
+                                    q.put((abs(p.dis(goal) - dis_num), p))
+                                else:
+                                    break
                             else:
                                 break
                         else:
-                            break
+                            continue
                     else:
                         break
                 else:
                     break
-
+        
+        if q.empty():
+            raise Exception("Error: assign orientation failed.")
         c, p = q.get()
         sPath.append(State(p.multiply(self.map.scale), self.goalori))
         if len(sPath) > 1:
@@ -160,7 +168,7 @@ class PathPlanner:
         @param clearance_factor: factor to increase the clearance
         """
         assert self.map is not None
-        num = int(clearance_factor * (Thymio_Size + 2*Ball_Size) / self.map.scale)
+        num = int(clearance_factor * 2 * (Thymio_Size + 2*Ball_Size) / self.map.scale)
 
         self.obs = self.map.obs_map
         # self.obs = np.zeros((self.map.height, self.map.width))
