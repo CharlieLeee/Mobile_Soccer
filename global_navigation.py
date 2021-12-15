@@ -44,7 +44,7 @@ class PathPlanner:
             self._plot()
 
 
-    def approach(self, pBall, bias_pos = None, theta = np.pi/2):
+    def approach(self, pBall, bias_pos = None, theta = np.pi/2, factor = 1.5):
         """
         calculate a position for Thymio to approach the ball
         that the ball in front of the Thymio will be at the goal position.
@@ -58,7 +58,7 @@ class PathPlanner:
         else:
             dx = bias_pos.x
             dy = bias_pos.y
-        r = Ball_Size*2 / self.map.scale
+        r = factor * Ball_Size*2 / self.map.scale
         pBasketx = pBall.x - r*math.cos(theta)
         pBaskety = pBall.y - r*math.sin(theta)
         p = Pos(int(pBasketx - dx*math.cos(theta) - dy*math.sin(theta)),
