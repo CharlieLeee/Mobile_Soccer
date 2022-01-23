@@ -14,3 +14,5 @@ it imports some package from
 * `vision.py`
 
 The local navigation part is done in the chapter **motion control**.
+
+For presentation please refer to [slides](https://charlieleee.github.io/project/thymio/#slides)
